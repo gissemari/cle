@@ -70,11 +70,11 @@ def Gaussian_sample(mu, sig, num_sample=None, theano_rng=default_theano_rng):
 def GMM_sample(mu, sig, coeff, theano_rng=default_theano_rng):
 
     mu = mu.reshape((mu.shape[0],
-                     mu.shape[1]/coeff.shape[-1],
+                     mu.shape[1]//coeff.shape[-1],
                      coeff.shape[-1]))
 
     sig = sig.reshape((sig.shape[0],
-                       sig.shape[1]/coeff.shape[-1],
+                       sig.shape[1]//coeff.shape[-1],
                        coeff.shape[-1]))
 
     idx = predict(
@@ -90,7 +90,36 @@ def GMM_sample(mu, sig, coeff, theano_rng=default_theano_rng):
     epsilon = theano_rng.normal(size=mu.shape,
                                 avg=0., std=1.,
                                 dtype=mu.dtype)
+    #mu = mu.sum(axis=1)
+    #sig = sig.sum(axis=1)
+    z = mu + sig * epsilon
 
+    return z
+
+def GMM_sampleY(mu, sig, coeff, theano_rng=default_theano_rng):
+
+    mu = mu.reshape((mu.shape[0],
+                     mu.shape[1]//coeff.shape[-1],
+                     coeff.shape[-1]))
+
+    sig = sig.reshape((sig.shape[0],
+                       sig.shape[1]//coeff.shape[-1],
+                       coeff.shape[-1]))
+
+    idx = predict(
+        theano_rng.multinomial(
+            pvals=coeff,
+            dtype=coeff.dtype
+        ),
+        axis=1
+    )
+    mu = mu[T.arange(mu.shape[0]), :, idx]
+    sig = sig[T.arange(sig.shape[0]), :, idx]
+    epsilon = theano_rng.normal(size=mu.shape,
+                                avg=0., std=1.,
+                                dtype=mu.dtype)
+    #mu = mu.sum(axis=1)
+    #sig = sig.sum(axis=1)
     z = mu + sig * epsilon
 
     return z

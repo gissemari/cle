@@ -107,20 +107,57 @@ def GMM(y, mu, sig, coeff):
     coeff : FullyConnected (Softmax)
     """
     y = y.dimshuffle(0, 1, 'x')
+    y.name = 'y_shuffled'
     mu = mu.reshape((mu.shape[0],
-                     mu.shape[1]/coeff.shape[-1],
+                     mu.shape[1]//coeff.shape[-1],
                      coeff.shape[-1]))
+    mu.name = 'mu'
     sig = sig.reshape((sig.shape[0],
-                       sig.shape[1]/coeff.shape[-1],
+                       sig.shape[1]//coeff.shape[-1],
                        coeff.shape[-1]))
-    inner = -0.5 * T.sum(T.sqr(y - mu) / sig**2 + 2 * T.log(sig) +
-                         T.log(2 * np.pi), axis=1)
+    sig.name = 'sig'
+    a = T.sqr(y - mu)
+    a.name = 'a'
+    inner = -0.5 * T.sum(a / sig**2 + 2 * T.log(sig) + T.log(2 * np.pi), axis=1)
+    inner.name = 'inner'
     nll = -logsumexp(T.log(coeff) + inner, axis=1)
-
+    nll.name = 'logsum'
     return nll
 
+def GMMdisag(y, mu, sig, coeff):
+    """
+    Gaussian mixture model negative log-likelihood
 
-def BiGauss(y, mu, sig, corr, binary):
+    Parameters
+    ----------
+    y     : TensorVariable
+    mu    : FullyConnected (Linear)
+    sig   : FullyConnected (Softplus)
+    coeff : FullyConnected (Softmax)
+    """
+    y = y.dimshuffle(0, 1, 'x')
+    y.name = 'y_shuffled'
+    coeff = coeff.reshape((coeff.shape[0], 1,coeff.shape[1] ))
+    mu = mu.reshape((mu.shape[0],
+                     mu.shape[1]//coeff.shape[-1],
+                     coeff.shape[-1]))
+    mu = (mu * coeff).sum(axis = 2).sum(axis = 1).reshape((mu.shape[0],1,1))
+
+    mu.name = 'mu'
+    sig = sig.reshape((sig.shape[0],
+                       sig.shape[1]//coeff.shape[-1],
+                       coeff.shape[-1]))
+    sig = (sig * coeff).sum(axis = 2).sum(axis = 1).reshape((sig.shape[0],1,1))
+    sig.name = 'sig'
+    a = T.sqr( mu - y)
+    a.name = 'a_GMMdisag'
+    inner = -0.5 * T.sum(a / sig**2 + 2 * T.log(sig) + T.log(2 * np.pi), axis=1)
+    inner.name = 'inner'
+    nll = -logsumexp(T.log(coeff) + inner, axis=1)
+    nll.name = 'logsum'
+    return nll
+
+def BiGauss(y, mu, sig, corr, binary):#x_in, theta_mu_in, theta_sig_in, corr_in, binary_in
     """
     Gaussian mixture model negative log-likelihood
     Parameters

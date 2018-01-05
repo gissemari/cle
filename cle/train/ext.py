@@ -7,10 +7,13 @@ import sys
 import theano
 import theano.tensor as T
 import time
+import matplotlib.pyplot as plt
 
 from cle.cle.graph import TheanoMixin
 from cle.cle.utils import secure_pickle_dump, tolist
-
+from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams # for theano_rng used in sampling (to plot)
+from theano.tensor.raw_random import RandomStreamsBase as RandStrBase
+from random import *
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +91,8 @@ class EpochCount(Extension):
 
 
 class Monitoring(Extension, TheanoMixin):
-    def __init__(self, freq, ddout=None, data=None, monitor_fn=None,
+    def __init__(self, freq, ddout=None, indexSep = 22, indexDDoutPlot = None,
+                   instancesPlot = None, data=None, savedFolder = None,monitor_fn=None,
                  obj_monitor_fn=None, obj_monitor_ch=[], explosion_limit=1e8):
         """
         obj_monitor_fn :
@@ -106,6 +110,13 @@ class Monitoring(Extension, TheanoMixin):
         self.obj_monitor_fn = obj_monitor_fn
         self.obj_monitor_ch = obj_monitor_ch
         self.explosion_limit = explosion_limit
+        self.indexSep = indexSep
+        self.savedFolder = savedFolder
+        self.indexDDoutPlot = indexDDoutPlot
+        self.instancesPlot = instancesPlot
+        self.firstPlot = 1
+        #self.lastResults = None
+
 
     def monitor_data_based_channels(self, mainloop):
         """
@@ -113,35 +124,51 @@ class Monitoring(Extension, TheanoMixin):
 
             WRITEME
         """
+
         if self.monitor_fn is None:
             inputs = mainloop.inputs
             self.monitor_fn = self.build_theano_graph(inputs, self.ddout)
 
         if self.data is not None:
             data_record = []
-
-            for data in self.data:
+            others_record = []
+            #y_record = []
+            for data in self.data: #       
                 batch_record = []
-
-                for batch in data:
-                    this_out = self.monitor_fn(*batch)
-                    batch_record.append(this_out)
-
+                others = []
+                #y_real = []
+                count=0
+                for batch in data: # data es un iterator - batch es tuple ([batches[0], mask]) this happened n_batchs times
+                    #batch[0].shape -> (726, 20, 3)
+                    this_out = self.monitor_fn(*batch) # len(this_out) = 20 = batch size
+                    batch_record.append(this_out[:self.indexSep]) #indexSep 18
+                    others.append(this_out[self.indexSep:]) # 5 batches
+                    
+                    count+=1
+                    #print("here", len(this_out[indexSep:]), len(this_out[indexSep:][0]))
+                    #7 batches if 10000 instances uploaded, I guess because valid set does not have more than 1400
+                print(count)
                 data_record.append(np.asarray(batch_record))
-
+                others_record.append(others)
+                #y_record.append(y_real)
+                #others_record.append(np.asarray(others))
             for record, data in zip(data_record, self.data):
+                strLog = ''
                 for i, ch in enumerate(self.ddout):
-                    this_mean = record[:, i].mean()
+                    if (i>=self.indexSep): # number of parameters that just need mean to be measured
+                        continue
+                    this_mean = record[:, i].mean() #mean among the batches
 
                     if this_mean is np.nan:
                         raise ValueError("NaN occured in output.")
-                    logger.info(" %s_%s: %f" %
-                                (data.name, ch.name, this_mean))
-
+                    strLog +="{}: {} ".format(ch.name, this_mean)
+                    #logger.info(" %s_%s: %f " % (data.name, ch.name, this_mean))
+                    #print(record[:, i].shape[0],record[:, i].shape[1])
                     if this_mean > self.explosion_limit:
                         raise ValueError('explosion')
 
-                    ch_name = "%s_%s" % (data.name, ch.name)
+                    #ch_name = "%s_%s" % (data.name, ch.name)
+                    ch_name = "%s" % (ch.name)
                     mainloop.trainlog.monitor[ch_name].append(this_mean)
 
                     if i < len(self.obj_monitor_ch) and self.obj_monitor_fn is not None:
@@ -149,6 +176,89 @@ class Monitoring(Extension, TheanoMixin):
                         ch_name = "%s_%s" % (data.name, self.obj_monitor_ch[i])
                         logger.info(" %s: %f" % (ch_name, obj_monitor_val))
                         mainloop.trainlog.monitor[ch_name].append(obj_monitor_val)
+                print(strLog)
+            self.lastResults = others_record
+            '''
+            len(self.lastResults) - 1
+            len(self.lastResults[0]) - 2 (2 batches)
+            len(self.lastResults[0][0]) -4 (4 outputs)
+            self.lastResults[0][0][0].shape - (1000, 50, 1)
+            '''
+            numfig = 1
+            epoch = mainloop.trainlog.epoch_seen
+            for record, data in zip(others_record, self.data):
+                numBatch=0
+                for batch in data:
+                    
+                    if (numBatch==0):
+                        y_real = batch[2]#0-batch_x,1-mask_x, 2-labels, 3-mask_label
+                        x_real = batch[0]
+                        numfig = 1
+                        cols=len(self.instancesPlot)
+                        rows = len(self.indexDDoutPlot)
+                        
+                        if (self.firstPlot ==1):
+                            f, axorig = plt.subplots(2, cols, sharex=True)
+                            for j, instance in enumerate(self.instancesPlot):
+
+                                ################# DISAGGREGATION
+                                #plt.figure(numfig)
+                                #plt.subplot(212)
+                                axorig[0,j].plot(y_real[:,instance,:])
+                                axorig[0,j].set_title('Y-original-{}'.format(instance))
+                                #plt.savefig("{}/DisagReal_{}".format(self.savedFolder,instance))
+                                #plt.clf()
+                                ################ X ORIGINAL
+                                axorig[1,j].plot(x_real[:,instance,:])
+                                axorig[1,j].set_title('X-original-{}'.format(instance))
+                            plt.savefig("{}/original".format(self.savedFolder))
+                            plt.clf()
+                            self.firstPlot = 0
+                                #plt.figure(figsize=(20,50)) # makes just the two in the botton appear
+                                #plt.rcParams["figure.figsize"] = (50,100)
+                        plt.rcParams['figure.figsize'] = [20, 20]
+                        plt.rcParams['font.size'] = 20
+                        f, axarr = plt.subplots(rows, cols, sharex=True)
+
+                        for j, instance in enumerate(self.instancesPlot):    
+                            for i, ch in enumerate(self.indexDDoutPlot):
+                                 # number of parameters that just need mean to be measured
+                                this_var_batch = record[numBatch][ch[0]] # record[numBatch,i-18]
+                                #22-28: binary_temp, corr_temp, theta_mu_temp, theta_sig_temp, s_temp, z_1_temp, coeff_temp
+                                # int(np.random.RandomState(np.random.randint(1024)))#RandomStreams().uniform()#RandStrBase().random_integers(low=0, high=this_var_batch.shape[1]) #batchsize
+                                fig  = 1+i*cols + j
+                                #print(fig)
+                                axarr[i,j].plot(this_var_batch[:,instance,:])
+                                axarr[i,j].set_title(ch[1].name)
+                                '''
+                                plt.subplot(rows, cols,fig )
+                                plt.plot(this_var_batch[:,instance,:]) #this_var_batch[:,0]
+                                plt.title(ch.name)
+                                plt.subplots_adjust(top=0.92, bottom=0.05, left=0.10, right=0.95, hspace=0.5, wspace=0.5)
+                                numfig+=1
+                                '''
+                                #logger.info(" %s_%s" % (data.name, ch.name))
+                        f.subplots_adjust(top=0.92, bottom=0.05, left=0.10, right=0.95, hspace=0.3, wspace=0.3)
+                        plt.savefig("{}/allTogether_{}".format(self.savedFolder,epoch))#self.savedFolder+'/'+ch.name+str(numfig)
+                        plt.clf()
+                            #print( this_var_batch[:,0].shape)
+                        '''
+                        mu = record[numBatch][0]#[:,0]
+                        sig = record[numBatch][1]#[:,0]
+                        corr = record[numBatch][2]#[:,0]
+                        binary = record[numBatch][3]#[:,0]
+                        coeff = record[numBatch][4]#[:,0]
+                        print(mu.shape, sig.shape, corr.shape, binary.shape, coeff.shape)
+                        '''
+                        #(882, 200, 20)
+                        #s = self.sample_bernoulli_and_bivariate_gmm(mu,sig,corr, coeff, binary)
+                        #plt.show()
+                        numBatch+=1
+                    #print('Prior ', len(others_record), len(others_record[0]),len(others_record[0][0]) )#, len(others_record[1])
+            '''
+            #len(others_record[0]) = 5
+            #print(others_record)
+            '''
         else:
             pass
 
@@ -165,35 +275,29 @@ class Monitoring(Extension, TheanoMixin):
             t = np.asarray(log.monitor['time'])[srt: end].sum()
             logger.info("")
             logger.info(" Monitoring step")
-            logger.info(" ***************")
-            logger.info(" ----------------")
-            logger.info(" Traininig basics")
-            logger.info(" ................")
-            logger.info(" Elapsed time: %f" % t)
-            logger.info(" Epochs  seen: %d" % log.epoch_seen)
-            logger.info(" Batches seen: %d" % log.batch_seen)
-            logger.info(" -----------------------")
+            logger.info(" Elapsed time: %f epochs %d batches seen %d" % (t, log.epoch_seen, log.batch_seen))
+            #logger.info(" Epochs  seen: %d" % )
+            #logger.info(" Batches seen: %d" % )
             logger.info(" Optimization parameters")
             logger.info(" .......................")
             mainloop.optimizer.monitor()
             logger.info(" ------------------")
-            logger.info(" Forward-prop based")
-            logger.info(" ..................")
+            
             output_channel = [out.name for out in mainloop.outputs]
-
+            logger.info(" Forward-prop based - len output-channels %d" % len(output_channel))
             if log.batch_seen == 0:
                 logger.info(" initial_monitoring")
             else:
                 for i, out in enumerate(output_channel):
-                    this_mean = np.asarray(log.monitor['update'])[srt: end, i].mean()
+                    this_mean = np.asarray(log.monitor['update'])[srt: end, i].mean() # just this batch metrics?
                     if this_mean is np.nan:
                         raise ValueError("NaN occured in output.")
                     logger.info(" this_batch_%s: %f" % (out, this_mean))
 
             this_t0 = time.time()
-            self.monitor_data_based_channels(mainloop)
+            self.monitor_data_based_channels(mainloop) # this is done for all batches
             mt = time.time() - this_t0
-            logger.info(" Elapsed time for monitoring: %f" % mt)
+            logger.info(" Elapsed time for monitoring all batches: %f" % mt)
             mainloop.trainlog.monitor['monitoring_time'] = mt
 
 

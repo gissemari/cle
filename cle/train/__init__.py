@@ -88,7 +88,7 @@ class Training(PickleMixin, TheanoMixin):
 
         for batch in self.data:
             self.run_extension('ext_monitor')
-            self.run_extension('ext_save')
+            #self.run_extension('ext_save')
             batch_t0 = time.time()
             this_cost = self.cost_fn(*batch)
             self.trainlog.monitor['time'].append(time.time() - batch_t0)
@@ -97,11 +97,12 @@ class Training(PickleMixin, TheanoMixin):
             self.run_extension('ext_schedule')
 
         self.trainlog.epoch_seen += 1
+        print("Epoch ", self.trainlog.epoch_seen)
         self.run_extension('ext_term')
 
         if self.end_training():
             self.run_extension('ext_monitor')
-            self.run_extension('ext_save')
+            #self.run_extension('ext_save')
             return False
 
         return True

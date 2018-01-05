@@ -60,7 +60,11 @@ class FullyConnectedLayer(StemCell):
             z += tparams['b_'+self.name]
 
         if z.ndim == 3:
+            '''
+            ValueError: cannot reshape array of size 200 into shape (200,0,20). Apply node that caused the error: Reshape{3}(theta_mu, MakeVector{dtype='int64'}.0)
+            '''
             z = self.nonlin(z.reshape((z_shape[0]*z_shape[1], -1))).reshape((z_shape[0], z_shape[1], -1))
+            #z = self.nonlin(z.reshape((z_shape[0]*z_shape[1], -1))).reshape(( z_shape[1], z_shape[0], -1))
             z += self.cons
         elif z.ndim == 2:
             z = self.nonlin(z) + self.cons

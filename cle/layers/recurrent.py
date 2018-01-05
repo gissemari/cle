@@ -46,7 +46,7 @@ class RecurrentLayer(StemCell):
     def get_init_state(self, batch_size):
 
         state = T.zeros((batch_size, self.nout), dtype=theano.config.floatX)
-        state = T.unbroadcast(state, *range(state.ndim))
+        state = T.unbroadcast(state, *range(state.ndim))#[0,1] this is to raise an error if length of dimensions are not 1
 
         return state
 
@@ -140,7 +140,7 @@ class LSTM(RecurrentLayer):
         z_t = H[0]
         z = T.zeros((X[0].shape[0], 4*self.nout), dtype=theano.config.floatX)
 
-        for x, (parname, parout) in izip(X, self.parent.items()):
+        for x, (parname, parout) in izip(X, self.parent.items()): # parent[name] = dim_out
             W = tparams['W_'+parname+'__'+self.name]
 
             if x.ndim == 1:
