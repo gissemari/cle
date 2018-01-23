@@ -128,7 +128,7 @@ class Monitoring(Extension, TheanoMixin):
         if self.monitor_fn is None:
             inputs = mainloop.inputs
             self.monitor_fn = self.build_theano_graph(inputs, self.ddout)
-
+        count=0
         if self.data is not None:
             data_record = []
             others_record = []
@@ -136,14 +136,12 @@ class Monitoring(Extension, TheanoMixin):
             for data in self.data: #       
                 batch_record = []
                 others = []
-                #y_real = []
-                count=0
                 for batch in data: # data es un iterator - batch es tuple ([batches[0], mask]) this happened n_batchs times
                     #batch[0].shape -> (726, 20, 3)
                     this_out = self.monitor_fn(*batch) # len(this_out) = 20 = batch size
                     batch_record.append(this_out[:self.indexSep]) #indexSep 18
                     others.append(this_out[self.indexSep:]) # 5 batches
-                    
+                    #y_pred.append(batch[2])
                     count+=1
                     #print("here", len(this_out[indexSep:]), len(this_out[indexSep:][0]))
                     #7 batches if 10000 instances uploaded, I guess because valid set does not have more than 1400
@@ -158,7 +156,8 @@ class Monitoring(Extension, TheanoMixin):
                     if (i>=self.indexSep): # number of parameters that just need mean to be measured
                         continue
                     this_mean = record[:, i].mean() #mean among the batches
-
+                    #if (ch.name[0:3] = 'mse' ): # not necessary because this is .mean()
+                    #    this_mean = record[:, i].sum() * (1/count)
                     if this_mean is np.nan:
                         raise ValueError("NaN occured in output.")
                     strLog +="{}: {} ".format(ch.name, this_mean)
@@ -186,16 +185,25 @@ class Monitoring(Extension, TheanoMixin):
             '''
             numfig = 1
             epoch = mainloop.trainlog.epoch_seen
+            cols=len(self.instancesPlot)
+            rows = len(self.indexDDoutPlot)
             for record, data in zip(others_record, self.data):
                 numBatch=0
+                y_real1 = []
+                x_real1 = []
+                restOfRecords = {ch[1].name:[] for i, ch in enumerate(self.indexDDoutPlot)}
+
                 for batch in data:
-                    
+                    y_real1.append(batch[2])
+                    x_real1.append(batch[0])
+                    for i, ch in enumerate(self.indexDDoutPlot):
+                        restOfRecords[ch[1].name].append(record[numBatch][ch[0]])
+
                     if (numBatch==0):
                         y_real = batch[2]#0-batch_x,1-mask_x, 2-labels, 3-mask_label
                         x_real = batch[0]
                         numfig = 1
-                        cols=len(self.instancesPlot)
-                        rows = len(self.indexDDoutPlot)
+
                         
                         if (self.firstPlot ==1):
                             f, axorig = plt.subplots(2, cols, sharex=True)
@@ -204,16 +212,19 @@ class Monitoring(Extension, TheanoMixin):
                                 ################# DISAGGREGATION
                                 #plt.figure(numfig)
                                 #plt.subplot(212)
-                                axorig[0,j].plot(y_real[:,instance,:])
+                                if (len(y_real.shape)==3):
+                                    axorig[0,j].plot(y_real[:,instance,:])
+                                else:
+                                    axorig[0,j].plot(y_real[:,instance])
                                 axorig[0,j].set_title('Y-original-{}'.format(instance))
                                 #plt.savefig("{}/DisagReal_{}".format(self.savedFolder,instance))
                                 #plt.clf()
                                 ################ X ORIGINAL
                                 axorig[1,j].plot(x_real[:,instance,:])
                                 axorig[1,j].set_title('X-original-{}'.format(instance))
-                            plt.savefig("{}/original".format(self.savedFolder))
+                            plt.savefig("{}/originalInstances".format(self.savedFolder))
                             plt.clf()
-                            self.firstPlot = 0
+                            
                                 #plt.figure(figsize=(20,50)) # makes just the two in the botton appear
                                 #plt.rcParams["figure.figsize"] = (50,100)
                         plt.rcParams['figure.figsize'] = [20, 20]
@@ -239,7 +250,7 @@ class Monitoring(Extension, TheanoMixin):
                                 '''
                                 #logger.info(" %s_%s" % (data.name, ch.name))
                         f.subplots_adjust(top=0.92, bottom=0.05, left=0.10, right=0.95, hspace=0.3, wspace=0.3)
-                        plt.savefig("{}/allTogether_{}".format(self.savedFolder,epoch))#self.savedFolder+'/'+ch.name+str(numfig)
+                        plt.savefig("{}/allTogetherInstances_{}".format(self.savedFolder,epoch), bbox_inches='tight')#self.savedFolder+'/'+ch.name+str(numfig)
                         plt.clf()
                             #print( this_var_batch[:,0].shape)
                         '''
@@ -255,12 +266,98 @@ class Monitoring(Extension, TheanoMixin):
                         #plt.show()
                         numBatch+=1
                     #print('Prior ', len(others_record), len(others_record[0]),len(others_record[0][0]) )#, len(others_record[1])
+                y_allBatch = np.concatenate(y_real1[0:2], axis = 0).reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
+                x_allBatch = np.concatenate(x_real1[0:2], axis = 0).reshape((x_real1[0].shape[0]*len(x_real1[0:2])*x_real1[0].shape[1],-1))
+                if (self.firstPlot == 1):
+                    f, axorig = plt.subplots(2, 1, sharex=True)
+                    axorig[0].plot(y_allBatch)
+                    axorig[0].set_title('Y-original')
+                    axorig[1].plot(x_allBatch)
+                    axorig[1].set_title('X-original')
+                    plt.savefig("{}/XY_{}".format(self.savedFolder,epoch))#self.savedFolder+'/'+ch.name+str(numfig)
+                    plt.clf()
+                    self.firstPlot = 0
+                f, axarr = plt.subplots(rows,1, sharex=True)
+                for i, ch in enumerate(self.indexDDoutPlot):
+                    aux0 = restOfRecords[ch[1].name]
+                    aux = np.concatenate(aux0, axis = 0).reshape((aux0[0].shape[0]*len(aux0)*aux0[0].shape[1],-1))#T.concatenate(restOfRecords[ch[1].name], axis = 1)
+                    axarr[i].plot(aux)
+                    axarr[i].set_title(ch[1].name)
+                plt.savefig("{}/allTogetherAllSet_{}".format(self.savedFolder,epoch))#self.savedFolder+'/'+ch.name+str(numfig)
+                plt.clf()
+                    
             '''
             #len(others_record[0]) = 5
             #print(others_record)
             '''
         else:
             pass
+
+    def monitor_data_plot(self, mainloop):
+        if self.monitor_fn is None:
+            inputs = mainloop.inputs
+            self.monitor_fn = self.build_theano_graph(inputs, self.ddout)
+
+        if self.data is not None:
+            data_record = []
+            others_record = []
+            #y_record = []
+            for data in self.data: #       
+                batch_record = []
+                count=0
+                for batch in data: # data es un iterator - batch es tuple ([batches[0], mask]) this happened n_batchs times
+                    #batch[0].shape -> (726, 20, 3)
+                    this_out = self.monitor_fn(*batch) # len(this_out) = 20 = batch size
+                    batch_record.append(this_out[:self.indexSep]) #indexSep 18                    
+                    count+=1
+                print("Batches in val: {}".format(count))
+                data_record.append(batch_record)
+
+            self.lastResults = data_record
+            cols=len(self.instancesPlot)
+            rows = len(self.indexDDoutPlot)
+            numfig = 1
+            epoch = mainloop.trainlog.epoch_seen
+            for record, data in zip(data_record, self.data):
+                numBatch=0
+                for batch in data:
+                    if (numBatch==0):
+                        y_real = batch[2]#0-batch_x,1-mask_x, 2-labels, 3-mask_label
+                        x_real = batch[0]
+                        numfig = 1
+                        if (self.firstPlot ==1):
+                            f, axorig = plt.subplots(2, cols, sharex=True)
+                            for j, instance in enumerate(self.instancesPlot):
+
+                                axorig[0,j].plot(y_real[:,instance,:])
+                                axorig[0,j].set_title('Y-original-{}'.format(instance))
+
+                                axorig[1,j].plot(x_real[:,instance,:])
+                                axorig[1,j].set_title('X-original-{}'.format(instance))
+                            plt.savefig("{}/original".format(self.savedFolder))
+                            plt.clf()
+                            self.firstPlot = 0
+
+                        plt.rcParams['figure.figsize'] = [20, 20]
+                        plt.rcParams['font.size'] = 20
+                        f, axarr = plt.subplots(rows, cols, sharex=True)
+
+                        for j, instance in enumerate(self.instancesPlot):    
+                            for i, ch in enumerate(self.indexDDoutPlot):
+                                 # number of parameters that just need mean to be measured
+                                this_var_batch = record[numBatch][ch[0]] # 0: index - 1: name
+                                fig  = 1+i*cols + j
+                                if (ch[1].name=='disaggregation'):
+                                    continue
+                                axarr[i,j].plot(this_var_batch[:,instance,:])
+                                axarr[i,j].set_title(ch[1].name)
+                        f.subplots_adjust(top=0.92, bottom=0.05, left=0.10, right=0.95, hspace=0.3, wspace=0.3)
+                        plt.savefig("{}/allTogether_{}".format(self.savedFolder,epoch))#self.savedFolder+'/'+ch.name+str(numfig)
+                        plt.clf()
+                        numBatch+=1
+        else:
+            pass
+
 
     def exe(self, mainloop):
         """

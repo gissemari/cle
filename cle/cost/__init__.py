@@ -124,7 +124,7 @@ def GMM(y, mu, sig, coeff):
     nll.name = 'logsum'
     return nll
 
-def GMMdisag(y, mu, sig, coeff):
+def GMMdisag2(y, mu, sig, coeff, mu2, sig2, coeff2):
     """
     Gaussian mixture model negative log-likelihood
 
@@ -135,26 +135,159 @@ def GMMdisag(y, mu, sig, coeff):
     sig   : FullyConnected (Softplus)
     coeff : FullyConnected (Softmax)
     """
-    y = y.dimshuffle(0, 1, 'x')
-    y.name = 'y_shuffled'
-    coeff = coeff.reshape((coeff.shape[0], 1,coeff.shape[1] ))
-    mu = mu.reshape((mu.shape[0],
-                     mu.shape[1]//coeff.shape[-1],
-                     coeff.shape[-1]))
-    mu = (mu * coeff).sum(axis = 2).sum(axis = 1).reshape((mu.shape[0],1,1))
+    y1 = y[:,0].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')#[:,0,:]
+    y2 = y[:,1].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')#[:,1,:]
+    y1.name = 'y1_shuffled'
+    y2.name = 'y2_shuffled'
+    #coeff = coeff.reshape((coeff.shape[0], 1,coeff.shape[1] ))
+    mu = mu.reshape((mu.shape[0],mu.shape[1]//coeff.shape[-1],coeff.shape[-1]))
+    sig = sig.reshape((sig.shape[0],sig.shape[1]//coeff.shape[-1],coeff.shape[-1]))
 
-    mu.name = 'mu'
-    sig = sig.reshape((sig.shape[0],
-                       sig.shape[1]//coeff.shape[-1],
-                       coeff.shape[-1]))
-    sig = (sig * coeff).sum(axis = 2).sum(axis = 1).reshape((sig.shape[0],1,1))
-    sig.name = 'sig'
-    a = T.sqr( mu - y)
-    a.name = 'a_GMMdisag'
-    inner = -0.5 * T.sum(a / sig**2 + 2 * T.log(sig) + T.log(2 * np.pi), axis=1)
-    inner.name = 'inner'
-    nll = -logsumexp(T.log(coeff) + inner, axis=1)
-    nll.name = 'logsum'
+    mu2 = mu2.reshape((mu2.shape[0],mu2.shape[1]//coeff2.shape[-1],coeff2.shape[-1]))
+    sig2 = sig2.reshape((sig2.shape[0],sig2.shape[1]//coeff2.shape[-1],coeff2.shape[-1]))
+
+    inner1 = -0.5 * T.sum(T.sqr(y1 - mu) / sig**2 + 2 * T.log(sig) + T.log(2 * np.pi), axis=1)
+    inner1.name = 'inner'
+    nll1 = -logsumexp(T.log(coeff) + inner1, axis=1)
+    nll1.name = 'logsum'
+
+    inner2 = -0.5 * T.sum(T.sqr(y2 - mu2) / sig2**2 + 2 * T.log(sig2) + T.log(2 * np.pi), axis=1)
+    nll2 = -logsumexp(T.log(coeff2) + inner2, axis=1)
+    nll = nll1 + nll2
+    return nll
+
+def GMMdisag3(y, mu, sig, coeff, mu2, sig2, coeff2, mu3, sig3, coeff3):
+    """
+    Gaussian mixture model negative log-likelihood
+
+    Parameters
+    ----------
+    y     : TensorVariable
+    mu    : FullyConnected (Linear)
+    sig   : FullyConnected (Softplus)
+    coeff : FullyConnected (Softmax)
+    """
+    y1 = y[:,0].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')#[:,0,:]
+    y2 = y[:,1].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')#[:,1,:]
+    y3 = y[:,2].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')
+    y1.name = 'y1_shuffled'
+    y2.name = 'y2_shuffled'
+    y3.name = 'y3_shuffled'
+    #coeff = coeff.reshape((coeff.shape[0], 1,coeff.shape[1] ))
+    mu = mu.reshape((mu.shape[0],mu.shape[1]//coeff.shape[-1],coeff.shape[-1]))
+    sig = sig.reshape((sig.shape[0],sig.shape[1]//coeff.shape[-1],coeff.shape[-1]))
+
+    mu2 = mu2.reshape((mu2.shape[0],mu2.shape[1]//coeff2.shape[-1],coeff2.shape[-1]))
+    sig2 = sig2.reshape((sig2.shape[0],sig2.shape[1]//coeff2.shape[-1],coeff2.shape[-1]))
+
+    mu3 = mu3.reshape((mu3.shape[0],mu3.shape[1]//coeff3.shape[-1],coeff3.shape[-1]))
+    sig3 = sig3.reshape((sig3.shape[0],sig3.shape[1]//coeff3.shape[-1],coeff3.shape[-1]))
+
+
+    inner1 = -0.5 * T.sum(T.sqr(y1 - mu) / sig**2 + 2 * T.log(sig) + T.log(2 * np.pi), axis=1)
+    inner1.name = 'inner'
+    nll1 = -logsumexp(T.log(coeff) + inner1, axis=1)
+    nll1.name = 'logsum'
+
+    inner2 = -0.5 * T.sum(T.sqr(y2 - mu2) / sig2**2 + 2 * T.log(sig2) + T.log(2 * np.pi), axis=1)
+    nll2 = -logsumexp(T.log(coeff2) + inner2, axis=1)
+
+    inner3 = -0.5 * T.sum(T.sqr(y3 - mu3) / sig3**2 + 2 * T.log(sig3) + T.log(2 * np.pi), axis=1)
+    nll3 = -logsumexp(T.log(coeff3) + inner3, axis=1)
+
+    nll = nll1 + nll2 + nll3
+    return nll
+
+def GMMdisag4(y, mu, sig, coeff, mu2, sig2, coeff2, mu3, sig3, coeff3, mu4, sig4, coeff4):
+    """
+    Gaussian mixture model negative log-likelihood
+
+    Parameters
+    ----------
+    y     : TensorVariable
+    mu    : FullyConnected (Linear)
+    sig   : FullyConnected (Softplus)
+    coeff : FullyConnected (Softmax)
+    """
+    y1 = y[:,0].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')#[:,0,:]
+    y2 = y[:,1].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')#[:,1,:]
+    y3 = y[:,2].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')
+    y4 = y[:,3].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')
+
+    y1.name = 'y1_shuffled'
+    y2.name = 'y2_shuffled'
+    y3.name = 'y3_shuffled'
+    y4.name = 'y4_shuffled'
+    #coeff = coeff.reshape((coeff.shape[0], 1,coeff.shape[1] ))
+    mu = mu.reshape((mu.shape[0],mu.shape[1]//coeff.shape[-1],coeff.shape[-1]))
+    sig = sig.reshape((sig.shape[0],sig.shape[1]//coeff.shape[-1],coeff.shape[-1]))
+
+    mu2 = mu2.reshape((mu2.shape[0],mu2.shape[1]//coeff2.shape[-1],coeff2.shape[-1]))
+    sig2 = sig2.reshape((sig2.shape[0],sig2.shape[1]//coeff2.shape[-1],coeff2.shape[-1]))
+
+    mu3 = mu3.reshape((mu3.shape[0],mu3.shape[1]//coeff3.shape[-1],coeff3.shape[-1]))
+    sig3 = sig3.reshape((sig3.shape[0],sig3.shape[1]//coeff3.shape[-1],coeff3.shape[-1]))
+
+    mu4 = mu4.reshape((mu4.shape[0],mu4.shape[1]//coeff4.shape[-1],coeff4.shape[-1]))
+    sig4 = sig4.reshape((sig4.shape[0],sig4.shape[1]//coeff4.shape[-1],coeff4.shape[-1]))
+
+
+    inner1 = -0.5 * T.sum(T.sqr(y1 - mu) / sig**2 + 2 * T.log(sig) + T.log(2 * np.pi), axis=1)
+    inner1.name = 'inner'
+    nll1 = -logsumexp(T.log(coeff) + inner1, axis=1)
+    nll1.name = 'logsum'
+
+    inner2 = -0.5 * T.sum(T.sqr(y2 - mu2) / sig2**2 + 2 * T.log(sig2) + T.log(2 * np.pi), axis=1)
+    nll2 = -logsumexp(T.log(coeff2) + inner2, axis=1)
+
+    inner3 = -0.5 * T.sum(T.sqr(y3 - mu3) / sig3**2 + 2 * T.log(sig3) + T.log(2 * np.pi), axis=1)
+    nll3 = -logsumexp(T.log(coeff3) + inner3, axis=1)
+
+    inner4 = -0.5 * T.sum(T.sqr(y4 - mu4) / sig4**2 + 2 * T.log(sig4) + T.log(2 * np.pi), axis=1)
+    nll4 = -logsumexp(T.log(coeff4) + inner4, axis=1)
+
+    nll = nll1 + nll2 + nll3 + nll4
+    return nll
+
+def GMMdisagMulti(y, y_dim,  mu, sig, coeff):
+    """
+    Gaussian mixture model negative log-likelihood
+
+    Parameters
+    ----------
+    y     : TensorVariable
+    mu    : FullyConnected (Linear)
+    sig   : FullyConnected (Softplus)
+    coeff : FullyConnected (Softmax)
+    """
+    newY = [y[:,i].dimshuffle(0, 'x').dimshuffle(0, 1, 'x') for i in range(y_dim)]#[:,0,:]
+
+    #coeff = coeff.reshape((coeff.shape[0], 1,coeff.shape[1] ))
+    mu = [mu.reshape((mu.shape[0],mu.shape[1]//coeff.shape[-1],coeff.shape[-1])) for i in range(y_dim)]
+    sig = [sig.reshape((sig.shape[0],sig.shape[1]//coeff.shape[-1],coeff.shape[-1])) for i in range(y_dim)]
+
+    '''
+    mu = mu.reshape((mu.shape[0],mu.shape[1]//coeff.shape[-1],coeff.shape[-1]))
+    sig = sig.reshape((sig.shape[0],sig.shape[1]//coeff.shape[-1],coeff.shape[-1]))
+
+    mu2 = mu2.reshape((mu2.shape[0],mu2.shape[1]//coeff2.shape[-1],coeff2.shape[-1]))
+    sig2 = sig2.reshape((sig2.shape[0],sig2.shape[1]//coeff2.shape[-1],coeff2.shape[-1]))
+
+    mu3 = mu3.reshape((mu3.shape[0],mu3.shape[1]//coeff3.shape[-1],coeff3.shape[-1]))
+    sig3 = sig3.reshape((sig3.shape[0],sig3.shape[1]//coeff3.shape[-1],coeff3.shape[-1]))
+
+    inner1 = -0.5 * T.sum(T.sqr(y1 - mu) / sig**2 + 2 * T.log(sig) + T.log(2 * np.pi), axis=1)
+    inner1.name = 'inner'
+    nll1 = -logsumexp(T.log(coeff) + inner1, axis=1)
+    nll1.name = 'logsum'
+
+    inner2 = -0.5 * T.sum(T.sqr(y2 - mu2) / sig2**2 + 2 * T.log(sig2) + T.log(2 * np.pi), axis=1)
+    nll2 = -logsumexp(T.log(coeff2) + inner2, axis=1)
+    '''
+    inner = [-0.5 * T.sum(T.sqr(newY[i] - mu[i]) / sig[i]**2 + 2 * T.log(sig[i]) + T.log(2 * np.pi), axis=1) for i in range(y_dim)]
+    nll = [-logsumexp(T.log(coeff[i]) + inner[i], axis=1) for i in range(y_dim)]
+
+    nll = nll.sum()
     return nll
 
 def BiGauss(y, mu, sig, corr, binary):#x_in, theta_mu_in, theta_sig_in, corr_in, binary_in

@@ -12,9 +12,9 @@ class Data(object):
     ----------
     .. todo::
     """
-    def __init__(self, name=None, path=None, multi_process=0):
+    def __init__(self, name=None, path=None, labels=None, inputX=None, multi_process=0):
         self.name = name
-        self.data = self.load(path)
+        self.data = self.load(labels, inputX)
         self.multi_process = multi_process
         if multi_process > 0:
             self.queue = Queue(2**15)
