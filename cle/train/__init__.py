@@ -34,7 +34,8 @@ class Training(PickleMixin, TheanoMixin):
                  outputs,
                  debug_print=0,
                  trainlog=None,
-                 extension=None):
+                 extension=None,
+                 lr_iterations=None):
         self.name = name
         self.data = data
         self.model = model
@@ -62,6 +63,7 @@ class Training(PickleMixin, TheanoMixin):
         else:
             self.trainlog = trainlog
         self.endloop = 0
+        self.lr_iterations = lr_iterations
 
     def build_training_graph(self):
 
@@ -97,6 +99,9 @@ class Training(PickleMixin, TheanoMixin):
             self.run_extension('ext_schedule')
 
         self.trainlog.epoch_seen += 1
+        for limit, lr_it in self.lr_iterations.items():
+            if (limit < self.trainlog.epoch_seen):
+                self.optimizer.lr.set_value(lr_it)
         print("Epoch ", self.trainlog.epoch_seen)
         self.run_extension('ext_term')
 
