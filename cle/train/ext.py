@@ -8,7 +8,7 @@ import theano
 import theano.tensor as T
 import time
 import matplotlib.pyplot as plt
-
+plt.switch_backend('agg')
 from cle.cle.graph import TheanoMixin
 from cle.cle.utils import secure_pickle_dump, tolist
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams # for theano_rng used in sampling (to plot)
