@@ -132,23 +132,21 @@ class Monitoring(Extension, TheanoMixin):
         if self.data is not None:
             data_record = []
             others_record = []
-            #y_record = []
             for data in self.data: #       
                 batch_record = []
-                others = []
+                #others = []
                 for batch in data: # data es un iterator - batch es tuple ([batches[0], mask]) this happened n_batchs times
                     #batch[0].shape -> (726, 20, 3)
                     this_out = self.monitor_fn(*batch) # len(this_out) = 20 = batch size
                     batch_record.append(this_out[:self.indexSep]) #indexSep 18
-                    others.append(this_out[self.indexSep:]) # 5 batches
+                    #others.append(this_out[self.indexSep:]) # 5 batches
                     #y_pred.append(batch[2])
                     count+=1
                     #print("here", len(this_out[indexSep:]), len(this_out[indexSep:][0]))
                     #7 batches if 10000 instances uploaded, I guess because valid set does not have more than 1400
                 print(count)
                 data_record.append(np.asarray(batch_record))
-                others_record.append(others)
-                #y_record.append(y_real)
+                #others_record.append(others)
                 #others_record.append(np.asarray(others))
             for record, data in zip(data_record, self.data):
                 strLog = ''
@@ -176,12 +174,7 @@ class Monitoring(Extension, TheanoMixin):
                         logger.info(" %s: %f" % (ch_name, obj_monitor_val))
                         mainloop.trainlog.monitor[ch_name].append(obj_monitor_val)
                 print(strLog)
-            self.lastResults = others_record
-            '''
-            len(self.lastResults) - 1
-            len(self.lastResults[0]) - 2 (2 batches)
-            len(self.lastResults[0][0]) -4 (4 outputs)
-            self.lastResults[0][0][0].shape - (1000, 50, 1)
+            #self.lastResults = others_record
             '''
             numfig = 1
             epoch = mainloop.trainlog.epoch_seen
@@ -241,29 +234,9 @@ class Monitoring(Extension, TheanoMixin):
                                 #print(fig)
                                 axarr[i,j].plot(this_var_batch[:,instance,:])
                                 axarr[i,j].set_title(ch[1].name)
-                                '''
-                                plt.subplot(rows, cols,fig )
-                                plt.plot(this_var_batch[:,instance,:]) #this_var_batch[:,0]
-                                plt.title(ch.name)
-                                plt.subplots_adjust(top=0.92, bottom=0.05, left=0.10, right=0.95, hspace=0.5, wspace=0.5)
-                                numfig+=1
-                                '''
-                                #logger.info(" %s_%s" % (data.name, ch.name))
                         f.subplots_adjust(top=0.92, bottom=0.05, left=0.10, right=0.95, hspace=0.3, wspace=0.3)
                         plt.savefig("{}/allTogetherInstances_{}".format(self.savedFolder,epoch), bbox_inches='tight')#self.savedFolder+'/'+ch.name+str(numfig)
                         plt.clf()
-                            #print( this_var_batch[:,0].shape)
-                        '''
-                        mu = record[numBatch][0]#[:,0]
-                        sig = record[numBatch][1]#[:,0]
-                        corr = record[numBatch][2]#[:,0]
-                        binary = record[numBatch][3]#[:,0]
-                        coeff = record[numBatch][4]#[:,0]
-                        print(mu.shape, sig.shape, corr.shape, binary.shape, coeff.shape)
-                        '''
-                        #(882, 200, 20)
-                        #s = self.sample_bernoulli_and_bivariate_gmm(mu,sig,corr, coeff, binary)
-                        #plt.show()
                         numBatch+=1
                     #print('Prior ', len(others_record), len(others_record[0]),len(others_record[0][0]) )#, len(others_record[1])
                 y_allBatch = np.concatenate(y_real1[0:2], axis = 0).reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
@@ -285,10 +258,6 @@ class Monitoring(Extension, TheanoMixin):
                     axarr[i].set_title(ch[1].name)
                 plt.savefig("{}/allTogetherAllSet_{}".format(self.savedFolder,epoch))#self.savedFolder+'/'+ch.name+str(numfig)
                 plt.clf()
-                    
-            '''
-            #len(others_record[0]) = 5
-            #print(others_record)
             '''
         else:
             pass
