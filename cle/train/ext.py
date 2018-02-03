@@ -134,19 +134,19 @@ class Monitoring(Extension, TheanoMixin):
             others_record = []
             for data in self.data: #       
                 batch_record = []
-                #others = []
+                others = []
                 for batch in data: # data es un iterator - batch es tuple ([batches[0], mask]) this happened n_batchs times
                     #batch[0].shape -> (726, 20, 3)
                     this_out = self.monitor_fn(*batch) # len(this_out) = 20 = batch size
                     batch_record.append(this_out[:self.indexSep]) #indexSep 18
-                    #others.append(this_out[self.indexSep:]) # 5 batches
+                    others.append(this_out[self.indexSep:]) # 5 batches
                     #y_pred.append(batch[2])
                     count+=1
                     #print("here", len(this_out[indexSep:]), len(this_out[indexSep:][0]))
                     #7 batches if 10000 instances uploaded, I guess because valid set does not have more than 1400
                 print(count)
                 data_record.append(np.asarray(batch_record))
-                #others_record.append(others)
+                others_record.append(others)
                 #others_record.append(np.asarray(others))
             for record, data in zip(data_record, self.data):
                 strLog = ''
