@@ -175,7 +175,6 @@ class Monitoring(Extension, TheanoMixin):
                         mainloop.trainlog.monitor[ch_name].append(obj_monitor_val)
                 print(strLog)
             #self.lastResults = others_record
-            '''
             numfig = 1
             epoch = mainloop.trainlog.epoch_seen
             cols=len(self.instancesPlot)
@@ -258,7 +257,6 @@ class Monitoring(Extension, TheanoMixin):
                     axarr[i].set_title(ch[1].name)
                 plt.savefig("{}/allTogetherAllSet_{}".format(self.savedFolder,epoch))#self.savedFolder+'/'+ch.name+str(numfig)
                 plt.clf()
-            '''
         else:
             pass
 

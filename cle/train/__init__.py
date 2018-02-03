@@ -103,7 +103,7 @@ class Training(PickleMixin, TheanoMixin):
             if (limit < self.trainlog.epoch_seen):
                 self.optimizer.lr.set_value(lr_it)
         print("Epoch ", self.trainlog.epoch_seen)
-        self.run_extension('ext_term')
+        self.run_extension('ext_term')## changes the value of endloop
 
         if self.end_training():
             self.run_extension('ext_monitor')
