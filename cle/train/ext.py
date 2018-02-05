@@ -141,58 +141,81 @@ class Monitoring(Extension, TheanoMixin):
                     batch_record.append(this_out[:self.indexSep]) #indexSep 18
                     others.append(this_out[self.indexSep:]) # 5 batches
                     #y_pred.append(batch[2])
-                    count+=1
+                    
                     #print("here", len(this_out[indexSep:]), len(this_out[indexSep:][0]))
                     #7 batches if 10000 instances uploaded, I guess because valid set does not have more than 1400
+                    ### Plot here real batches X
+                    if (self.firstPlot==1):
+                        oneBatch = np.concatenate(np.squeeze(batch[0]), axis = 0)
+                        plt.figure(1)
+                        plt.plot(oneBatch)
+                        plt.savefig("{}/x_batch-{}".format(self.savedFolder,count))
+                        plt.clf()
+                        if (len(batch)>2): # Ploting Y
+                            plt.figure(2)
+                            oneBatch = np.concatenate(np.squeeze(batch[2]), axis = 0)
+                            plt.plot(oneBatch)
+                            plt.savefig("{}/y-{}".format(self.savedFolder,count))
+                            plt.clf()
+                        self.firstPlot=0
+                    count+=1
                 print(count)
                 data_record.append(np.asarray(batch_record))
                 others_record.append(others)
                 #others_record.append(np.asarray(others))
+            numSelectedBatch = np.random.randint(count)-1
+            epoch = mainloop.trainlog.epoch_seen
+            rows = len(self.ddout) - self.indexSep
+            f, axorig = plt.subplots(rows, 1, sharex=True)
             for record, data in zip(data_record, self.data):
                 strLog = ''
                 for i, ch in enumerate(self.ddout):
                     if (i>=self.indexSep): # number of parameters that just need mean to be measured
-                        continue
-                    this_mean = record[:, i].mean() #mean among the batches
-                    #if (ch.name[0:3] = 'mse' ): # not necessary because this is .mean()
-                    #    this_mean = record[:, i].sum() * (1/count)
-                    if this_mean is np.nan:
-                        raise ValueError("NaN occured in output.")
-                    strLog +="{}: {} ".format(ch.name, this_mean)
-                    #logger.info(" %s_%s: %f " % (data.name, ch.name, this_mean))
-                    #print(record[:, i].shape[0],record[:, i].shape[1])
-                    if this_mean > self.explosion_limit:
-                        raise ValueError('explosion')
+                        #### PLOTING FOR JUST SERIES. Maybe another FOR for the different batches in different files
+                        oneBatch = np.concatenate(others_record[0][numSelectedBatch][i-self.indexSep], axis = 0)#.reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
+                        axorig[i-self.indexSep].plot(oneBatch)
+                        axorig[i-self.indexSep].set_title('{}'.format(ch.name))
+                        ####
+                    else:
+                        this_mean = record[:, i].mean() #mean among the batches
+                        #if (ch.name[0:3] = 'mse' ): # not necessary because this is .mean()
+                        #    this_mean = record[:, i].sum() * (1/count)
+                        if this_mean is np.nan:
+                            raise ValueError("NaN occured in output.")
+                        strLog +="{}: {} ".format(ch.name, this_mean)
+                        #logger.info(" %s_%s: %f " % (data.name, ch.name, this_mean))
+                        #print(record[:, i].shape[0],record[:, i].shape[1])
+                        if this_mean > self.explosion_limit:
+                            raise ValueError('explosion')
 
-                    #ch_name = "%s_%s" % (data.name, ch.name)
-                    ch_name = "%s" % (ch.name)
-                    mainloop.trainlog.monitor[ch_name].append(this_mean)
+                        #ch_name = "%s_%s" % (data.name, ch.name)
+                        ch_name = "%s" % (ch.name)
+                        mainloop.trainlog.monitor[ch_name].append(this_mean)
 
-                    if i < len(self.obj_monitor_ch) and self.obj_monitor_fn is not None:
-                        obj_monitor_val = self.obj_monitor_fn(this_mean)
-                        ch_name = "%s_%s" % (data.name, self.obj_monitor_ch[i])
-                        logger.info(" %s: %f" % (ch_name, obj_monitor_val))
-                        mainloop.trainlog.monitor[ch_name].append(obj_monitor_val)
+                        if i < len(self.obj_monitor_ch) and self.obj_monitor_fn is not None:
+                            obj_monitor_val = self.obj_monitor_fn(this_mean)
+                            ch_name = "%s_%s" % (data.name, self.obj_monitor_ch[i])
+                            logger.info(" %s: %f" % (ch_name, obj_monitor_val))
+                            mainloop.trainlog.monitor[ch_name].append(obj_monitor_val)
                 print(strLog)
-            #self.lastResults = others_record
-            numfig = 1
-            epoch = mainloop.trainlog.epoch_seen
-            cols=len(self.instancesPlot)
-            rows = len(self.indexDDoutPlot)
+                f.subplots_adjust(top=0.92, bottom=0.05, left=0.10, right=0.95, hspace=0.3, wspace=0.3)
+                plt.savefig("{}/all-{}-batch_e{}".format(self.savedFolder,numSelectedBatch,epoch), bbox_inches='tight')#self.savedFolder+'/'+ch.name+str(numfig)
+                plt.clf()
+            '''
             for record, data in zip(others_record, self.data):
                 numBatch=0
-                y_real1 = []
+                #y_real1 = []
                 x_real1 = []
                 restOfRecords = {ch[1].name:[] for i, ch in enumerate(self.indexDDoutPlot)}
 
                 for batch in data:
-                    y_real1.append(batch[2])
+                    #y_real1.append(batch[2])
                     x_real1.append(batch[0])
                     for i, ch in enumerate(self.indexDDoutPlot):
                         restOfRecords[ch[1].name].append(record[numBatch][ch[0]])
 
                     if (numBatch==0):
-                        y_real = batch[2]#0-batch_x,1-mask_x, 2-labels, 3-mask_label
+                        #y_real = batch[2]#0-batch_x,1-mask_x, 2-labels, 3-mask_label
                         x_real = batch[0]
                         numfig = 1
 
@@ -208,6 +231,7 @@ class Monitoring(Extension, TheanoMixin):
                                     axorig[0,j].plot(y_real[:,instance,:])
                                 else:
                                     axorig[0,j].plot(y_real[:,instance])
+
                                 axorig[0,j].set_title('Y-original-{}'.format(instance))
                                 #plt.savefig("{}/DisagReal_{}".format(self.savedFolder,instance))
                                 #plt.clf()
@@ -238,7 +262,7 @@ class Monitoring(Extension, TheanoMixin):
                         plt.clf()
                         numBatch+=1
                     #print('Prior ', len(others_record), len(others_record[0]),len(others_record[0][0]) )#, len(others_record[1])
-                y_allBatch = np.concatenate(y_real1[0:2], axis = 0).reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
+                #y_allBatch = np.concatenate(y_real1[0:2], axis = 0).reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
                 x_allBatch = np.concatenate(x_real1[0:2], axis = 0).reshape((x_real1[0].shape[0]*len(x_real1[0:2])*x_real1[0].shape[1],-1))
                 if (self.firstPlot == 1):
                     f, axorig = plt.subplots(2, 1, sharex=True)
@@ -257,6 +281,7 @@ class Monitoring(Extension, TheanoMixin):
                     axarr[i].set_title(ch[1].name)
                 plt.savefig("{}/allTogetherAllSet_{}".format(self.savedFolder,epoch))#self.savedFolder+'/'+ch.name+str(numfig)
                 plt.clf()
+            '''
         else:
             pass
 
