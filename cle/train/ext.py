@@ -140,10 +140,6 @@ class Monitoring(Extension, TheanoMixin):
                     this_out = self.monitor_fn(*batch) # len(this_out) = 20 = batch size
                     batch_record.append(this_out[:self.indexSep]) #indexSep 18
                     others.append(this_out[self.indexSep:]) # 5 batches
-                    #y_pred.append(batch[2])
-                    
-                    #print("here", len(this_out[indexSep:]), len(this_out[indexSep:][0]))
-                    #7 batches if 10000 instances uploaded, I guess because valid set does not have more than 1400
                     ### Plot here real batches X
                     if (self.firstPlot==1):
                         oneBatch = np.concatenate(np.squeeze(batch[0]), axis = 0)
