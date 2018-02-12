@@ -129,6 +129,8 @@ class Monitoring(Extension, TheanoMixin):
             inputs = mainloop.inputs
             self.monitor_fn = self.build_theano_graph(inputs, self.ddout)
         count=0
+        X=[]
+        Y=[]
         if self.data is not None:
             data_record = []
             others_record = []
@@ -137,10 +139,23 @@ class Monitoring(Extension, TheanoMixin):
                 others = []
                 for batch in data: # data es un iterator - batch es tuple ([batches[0], mask]) this happened n_batchs times
                     #batch[0].shape -> (726, 20, 3)
+                    #batch[0].shape -> (500,800,1) = (seqLen, numBatch, 1)
                     this_out = self.monitor_fn(*batch) # len(this_out) = 20 = batch size
                     batch_record.append(this_out[:self.indexSep]) #indexSep 18
                     others.append(this_out[self.indexSep:]) # 5 batches
                     ### Plot here real batches X
+                    if count in self.instancesPlot.keys():
+                        listInst = self.instancesPlot[count]
+                        for idxInst in listInst:
+                            oneBatch = np.concatenate(np.squeeze(batch[0][:,idxInst-5:idxInst+5]), axis = 0)
+                            #oneBatch = np.squeeze(batch[0][:,idxInst])
+                            X.append(oneBatch)
+                            if (len(batch)>2):
+                                oneBatch = np.concatenate(np.squeeze(batch[2][:,idxInst-5:idxInst+5]), axis = 0)
+                                #oneBatch =np.squeeze(batch[2][:,idxInst])
+                                Y.append(oneBatch)
+
+                    '''
                     if (self.firstPlot==1):
                         oneBatch = np.concatenate(np.squeeze(batch[0]), axis = 0)
                         plt.figure(1)
@@ -154,24 +169,51 @@ class Monitoring(Extension, TheanoMixin):
                             plt.savefig("{}/y-{}".format(self.savedFolder,count))
                             plt.clf()
                         self.firstPlot=0
+                    '''
                     count+=1
                 print(count)
                 data_record.append(np.asarray(batch_record))
                 others_record.append(others)
                 #others_record.append(np.asarray(others))
+
+            print("len X: ",len(X))
+            for idx, xinst in enumerate(X):
+                if (self.firstPlot==1):
+                    plt.figure(1)
+                    plt.plot(xinst)
+                    plt.savefig("{}/x_instance-{}".format(self.savedFolder,idx))
+                    plt.clf()
+                    if (len(batch)>2): # Ploting Y
+                        plt.figure(2)
+                        plt.plot(Y[idx])
+                        plt.savefig("{}/y-instance-{}".format(self.savedFolder,idx))
+                        plt.clf()
+            self.firstPlot=0
             numSelectedBatch = np.random.randint(count)-1
             epoch = mainloop.trainlog.epoch_seen
             rows = len(self.ddout) - self.indexSep
-            f, axorig = plt.subplots(rows, 1, sharex=True)
+            
             for record, data in zip(data_record, self.data):
                 strLog = ''
+                for nbatch, batchList in self.instancesPlot.items():
+                    for idxInst in batchList:
+                        f, axorig = plt.subplots(rows, 1, sharex=True)
+                        for i, ch in enumerate(self.ddout):
+                            if (i>=self.indexSep): # number of parameters that just need mean to be measured
+                                #### PLOTING FOR JUST SERIES. Maybe another FOR for the different batches in different files
+                                
+                                oneBatch = np.concatenate(others_record[0][numSelectedBatch][i-self.indexSep][:,idxInst-5:idxInst+5], axis = 0)#.reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
+                                #axorig[i-self.indexSep].plot(oneBatch)
+                                #print(others_record[0][nbatch][i-self.indexSep].shape)(500, 800, 1) - (seqLen, batch,1)
+                                axorig[i-self.indexSep].plot(oneBatch)
+                                #oneBatch=others_record[0][nbatch][i-self.indexSep][:,ninstance]
+                                axorig[i-self.indexSep].set_title('{}'.format(ch.name))
+                                ####
+                        plt.savefig("{}/all_e{}_batch{}-{}".format(self.savedFolder,epoch, nbatch, idxInst), bbox_inches='tight')#self.savedFolder+'/'+ch.name+str(numfig)
+                        plt.clf()
                 for i, ch in enumerate(self.ddout):
-                    if (i>=self.indexSep): # number of parameters that just need mean to be measured
-                        #### PLOTING FOR JUST SERIES. Maybe another FOR for the different batches in different files
-                        oneBatch = np.concatenate(others_record[0][numSelectedBatch][i-self.indexSep], axis = 0)#.reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
-                        axorig[i-self.indexSep].plot(oneBatch)
-                        axorig[i-self.indexSep].set_title('{}'.format(ch.name))
-                        ####
+                    if (i>=self.indexSep):
+                        pass
                     else:
                         this_mean = record[:, i].mean() #mean among the batches
                         #if (ch.name[0:3] = 'mse' ): # not necessary because this is .mean()
@@ -193,10 +235,9 @@ class Monitoring(Extension, TheanoMixin):
                             ch_name = "%s_%s" % (data.name, self.obj_monitor_ch[i])
                             logger.info(" %s: %f" % (ch_name, obj_monitor_val))
                             mainloop.trainlog.monitor[ch_name].append(obj_monitor_val)
+                            f.subplots_adjust(top=0.92, bottom=0.05, left=0.10, right=0.95, hspace=0.3, wspace=0.3)
                 print(strLog)
-                f.subplots_adjust(top=0.92, bottom=0.05, left=0.10, right=0.95, hspace=0.3, wspace=0.3)
-                plt.savefig("{}/all-{}-batch_e{}".format(self.savedFolder,numSelectedBatch,epoch), bbox_inches='tight')#self.savedFolder+'/'+ch.name+str(numfig)
-                plt.clf()
+                
             '''
             for record, data in zip(others_record, self.data):
                 numBatch=0
@@ -280,72 +321,6 @@ class Monitoring(Extension, TheanoMixin):
             '''
         else:
             pass
-
-    def monitor_data_plot(self, mainloop):
-        if self.monitor_fn is None:
-            inputs = mainloop.inputs
-            self.monitor_fn = self.build_theano_graph(inputs, self.ddout)
-
-        if self.data is not None:
-            data_record = []
-            others_record = []
-            #y_record = []
-            for data in self.data: #       
-                batch_record = []
-                count=0
-                for batch in data: # data es un iterator - batch es tuple ([batches[0], mask]) this happened n_batchs times
-                    #batch[0].shape -> (726, 20, 3)
-                    this_out = self.monitor_fn(*batch) # len(this_out) = 20 = batch size
-                    batch_record.append(this_out[:self.indexSep]) #indexSep 18                    
-                    count+=1
-                print("Batches in val: {}".format(count))
-                data_record.append(batch_record)
-
-            self.lastResults = data_record
-            cols=len(self.instancesPlot)
-            rows = len(self.indexDDoutPlot)
-            numfig = 1
-            epoch = mainloop.trainlog.epoch_seen
-            for record, data in zip(data_record, self.data):
-                numBatch=0
-                for batch in data:
-                    if (numBatch==0):
-                        y_real = batch[2]#0-batch_x,1-mask_x, 2-labels, 3-mask_label
-                        x_real = batch[0]
-                        numfig = 1
-                        if (self.firstPlot ==1):
-                            f, axorig = plt.subplots(2, cols, sharex=True)
-                            for j, instance in enumerate(self.instancesPlot):
-
-                                axorig[0,j].plot(y_real[:,instance,:])
-                                axorig[0,j].set_title('Y-original-{}'.format(instance))
-
-                                axorig[1,j].plot(x_real[:,instance,:])
-                                axorig[1,j].set_title('X-original-{}'.format(instance))
-                            plt.savefig("{}/original".format(self.savedFolder))
-                            plt.clf()
-                            self.firstPlot = 0
-
-                        plt.rcParams['figure.figsize'] = [20, 20]
-                        plt.rcParams['font.size'] = 20
-                        f, axarr = plt.subplots(rows, cols, sharex=True)
-
-                        for j, instance in enumerate(self.instancesPlot):    
-                            for i, ch in enumerate(self.indexDDoutPlot):
-                                 # number of parameters that just need mean to be measured
-                                this_var_batch = record[numBatch][ch[0]] # 0: index - 1: name
-                                fig  = 1+i*cols + j
-                                if (ch[1].name=='disaggregation'):
-                                    continue
-                                axarr[i,j].plot(this_var_batch[:,instance,:])
-                                axarr[i,j].set_title(ch[1].name)
-                        f.subplots_adjust(top=0.92, bottom=0.05, left=0.10, right=0.95, hspace=0.3, wspace=0.3)
-                        plt.savefig("{}/allTogether_{}".format(self.savedFolder,epoch))#self.savedFolder+'/'+ch.name+str(numfig)
-                        plt.clf()
-                        numBatch+=1
-        else:
-            pass
-
 
     def exe(self, mainloop):
         """
