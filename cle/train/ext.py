@@ -124,7 +124,7 @@ class Monitoring(Extension, TheanoMixin):
 
             WRITEME
         """
-
+        mainloop.trainlog.monitor['epoch'].append(mainloop.trainlog.epoch_seen)
         if self.monitor_fn is None:
             inputs = mainloop.inputs
             self.monitor_fn = self.build_theano_graph(inputs, self.ddout)
