@@ -189,7 +189,6 @@ class Monitoring(Extension, TheanoMixin):
                         plt.savefig("{}/y-instance-{}".format(self.savedFolder,idx))
                         plt.clf()
             self.firstPlot=0
-            numSelectedBatch = np.random.randint(count)-1
             epoch = mainloop.trainlog.epoch_seen
             rows = len(self.ddout) - self.indexSep
             
@@ -202,7 +201,7 @@ class Monitoring(Extension, TheanoMixin):
                             if (i>=self.indexSep): # number of parameters that just need mean to be measured
                                 #### PLOTING FOR JUST SERIES. Maybe another FOR for the different batches in different files
                                 
-                                oneBatch = np.concatenate(others_record[0][numSelectedBatch][i-self.indexSep][:,idxInst-5:idxInst+5], axis = 0)#.reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
+                                oneBatch = np.concatenate(others_record[0][nbatch][i-self.indexSep][:,idxInst-5:idxInst+5], axis = 0)#.reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
                                 #axorig[i-self.indexSep].plot(oneBatch)
                                 #print(others_record[0][nbatch][i-self.indexSep].shape)(500, 800, 1) - (seqLen, batch,1)
                                 axorig[i-self.indexSep].plot(oneBatch)
