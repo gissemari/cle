@@ -64,6 +64,7 @@ class Training(PickleMixin, TheanoMixin):
             self.trainlog = trainlog
         self.endloop = 0
         self.lr_iterations = lr_iterations
+        self.lastBatchlastPoch = 0
 
     def build_training_graph(self):
 
@@ -87,7 +88,7 @@ class Training(PickleMixin, TheanoMixin):
         logger.info("Terminating main loop")
 
     def run_epoch(self):
-
+        self.trainlog.lastBatchlastEpoch = self.trainlog.batch_seen
         for batch in self.data:
             self.run_extension('ext_monitor')
             #self.run_extension('ext_save')
@@ -107,7 +108,7 @@ class Training(PickleMixin, TheanoMixin):
 
         if self.end_training():
             self.run_extension('ext_monitor')
-            #self.run_extension('ext_save')
+            self.run_extension('ext_save')
             return False
 
         return True
@@ -147,3 +148,4 @@ class TrainLog(object):
         self.monitor = defaultdict(list)
         self.epoch_seen = 0
         self.batch_seen = 0
+        self.lastBatchlastEpoch = 0

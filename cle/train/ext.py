@@ -71,7 +71,7 @@ class GradientClipping(Extension):
 
 
 class EpochCount(Extension):
-    def __init__(self, num_epoch):
+    def __init__(self, num_epoch, save_path, header):
         """
         .. todo::
 
@@ -79,6 +79,8 @@ class EpochCount(Extension):
         """
         self.name = 'ext_term'
         self.num_epoch = num_epoch
+        self.fLog = open(save_path+'/outputTraining.csv', 'w')
+        self.fLog.write(header)
 
     def exe(self, mainloop):
         """
@@ -86,7 +88,14 @@ class EpochCount(Extension):
 
             WRITEME
         """
-        if np.mod(mainloop.trainlog.epoch_seen, self.num_epoch) == 0:
+        log = mainloop.trainlog
+        output_channel = [out.name for out in mainloop.outputs]
+        self.fLog.write("{},".format(log.epoch_seen))
+        for i, out in enumerate(output_channel):
+            this_mean = np.asarray(log.monitor['update'])[log.lastBatchlastEpoch:, i].mean() # just this batch metrics?
+            self.fLog.write("{},".format(this_mean))
+        self.fLog.write("\n")
+        if np.mod(log.epoch_seen, self.num_epoch) == 0:
             mainloop.endloop = 1
 
 
@@ -147,36 +156,18 @@ class Monitoring(Extension, TheanoMixin):
                     if count in self.instancesPlot.keys():
                         listInst = self.instancesPlot[count]
                         for idxInst in listInst:
-                            oneBatch = np.concatenate(np.squeeze(batch[0][:,idxInst-5:idxInst+5]), axis = 0)
+                            oneBatch = np.concatenate(np.squeeze(batch[0][:,idxInst-3:idxInst+3]), axis = 0)
                             #oneBatch = np.squeeze(batch[0][:,idxInst])
                             X.append(oneBatch)
                             if (len(batch)>2):
-                                oneBatch = np.concatenate(np.squeeze(batch[2][:,idxInst-5:idxInst+5]), axis = 0)
+                                oneBatch = np.concatenate(np.squeeze(batch[2][:,idxInst-3:idxInst+3]), axis = 0)
                                 #oneBatch =np.squeeze(batch[2][:,idxInst])
                                 Y.append(oneBatch)
-
-                    '''
-                    if (self.firstPlot==1):
-                        oneBatch = np.concatenate(np.squeeze(batch[0]), axis = 0)
-                        plt.figure(1)
-                        plt.plot(oneBatch)
-                        plt.savefig("{}/x_batch-{}".format(self.savedFolder,count))
-                        plt.clf()
-                        if (len(batch)>2): # Ploting Y
-                            plt.figure(2)
-                            oneBatch = np.concatenate(np.squeeze(batch[2]), axis = 0)
-                            plt.plot(oneBatch)
-                            plt.savefig("{}/y-{}".format(self.savedFolder,count))
-                            plt.clf()
-                        self.firstPlot=0
-                    '''
                     count+=1
                 print(count)
                 data_record.append(np.asarray(batch_record))
                 others_record.append(others)
-                #others_record.append(np.asarray(others))
 
-            print("len X: ",len(X))
             for idx, xinst in enumerate(X):
                 if (self.firstPlot==1):
                     plt.figure(1)
@@ -191,7 +182,7 @@ class Monitoring(Extension, TheanoMixin):
             self.firstPlot=0
             epoch = mainloop.trainlog.epoch_seen
             rows = len(self.ddout) - self.indexSep
-            
+            plt.close('all')
             for record, data in zip(data_record, self.data):
                 strLog = ''
                 for nbatch, batchList in self.instancesPlot.items():
@@ -201,7 +192,7 @@ class Monitoring(Extension, TheanoMixin):
                             if (i>=self.indexSep): # number of parameters that just need mean to be measured
                                 #### PLOTING FOR JUST SERIES. Maybe another FOR for the different batches in different files
                                 
-                                oneBatch = np.concatenate(others_record[0][nbatch][i-self.indexSep][:,idxInst-5:idxInst+5], axis = 0)#.reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
+                                oneBatch = np.concatenate(others_record[0][nbatch][i-self.indexSep][:,idxInst-3:idxInst+3], axis = 0)#.reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
                                 #axorig[i-self.indexSep].plot(oneBatch)
                                 #print(others_record[0][nbatch][i-self.indexSep].shape)(500, 800, 1) - (seqLen, batch,1)
                                 axorig[i-self.indexSep].plot(oneBatch)
@@ -236,88 +227,8 @@ class Monitoring(Extension, TheanoMixin):
                             mainloop.trainlog.monitor[ch_name].append(obj_monitor_val)
                             f.subplots_adjust(top=0.92, bottom=0.05, left=0.10, right=0.95, hspace=0.3, wspace=0.3)
                 print(strLog)
-                
-            '''
-            for record, data in zip(others_record, self.data):
-                numBatch=0
-                #y_real1 = []
-                x_real1 = []
-                restOfRecords = {ch[1].name:[] for i, ch in enumerate(self.indexDDoutPlot)}
+            plt.close('all')  
 
-                for batch in data:
-                    #y_real1.append(batch[2])
-                    x_real1.append(batch[0])
-                    for i, ch in enumerate(self.indexDDoutPlot):
-                        restOfRecords[ch[1].name].append(record[numBatch][ch[0]])
-
-                    if (numBatch==0):
-                        #y_real = batch[2]#0-batch_x,1-mask_x, 2-labels, 3-mask_label
-                        x_real = batch[0]
-                        numfig = 1
-
-                        
-                        if (self.firstPlot ==1):
-                            f, axorig = plt.subplots(2, cols, sharex=True)
-                            for j, instance in enumerate(self.instancesPlot):
-
-                                ################# DISAGGREGATION
-                                #plt.figure(numfig)
-                                #plt.subplot(212)
-                                if (len(y_real.shape)==3):
-                                    axorig[0,j].plot(y_real[:,instance,:])
-                                else:
-                                    axorig[0,j].plot(y_real[:,instance])
-
-                                axorig[0,j].set_title('Y-original-{}'.format(instance))
-                                #plt.savefig("{}/DisagReal_{}".format(self.savedFolder,instance))
-                                #plt.clf()
-                                ################ X ORIGINAL
-                                axorig[1,j].plot(x_real[:,instance,:])
-                                axorig[1,j].set_title('X-original-{}'.format(instance))
-                            plt.savefig("{}/originalInstances".format(self.savedFolder))
-                            plt.clf()
-                            
-                                #plt.figure(figsize=(20,50)) # makes just the two in the botton appear
-                                #plt.rcParams["figure.figsize"] = (50,100)
-                        plt.rcParams['figure.figsize'] = [20, 20]
-                        plt.rcParams['font.size'] = 20
-                        f, axarr = plt.subplots(rows, cols, sharex=True)
-
-                        for j, instance in enumerate(self.instancesPlot):    
-                            for i, ch in enumerate(self.indexDDoutPlot):
-                                 # number of parameters that just need mean to be measured
-                                this_var_batch = record[numBatch][ch[0]] # record[numBatch,i-18]
-                                #22-28: binary_temp, corr_temp, theta_mu_temp, theta_sig_temp, s_temp, z_1_temp, coeff_temp
-                                # int(np.random.RandomState(np.random.randint(1024)))#RandomStreams().uniform()#RandStrBase().random_integers(low=0, high=this_var_batch.shape[1]) #batchsize
-                                fig  = 1+i*cols + j
-                                #print(fig)
-                                axarr[i,j].plot(this_var_batch[:,instance,:])
-                                axarr[i,j].set_title(ch[1].name)
-                        f.subplots_adjust(top=0.92, bottom=0.05, left=0.10, right=0.95, hspace=0.3, wspace=0.3)
-                        plt.savefig("{}/allTogetherInstances_{}".format(self.savedFolder,epoch), bbox_inches='tight')#self.savedFolder+'/'+ch.name+str(numfig)
-                        plt.clf()
-                        numBatch+=1
-                    #print('Prior ', len(others_record), len(others_record[0]),len(others_record[0][0]) )#, len(others_record[1])
-                #y_allBatch = np.concatenate(y_real1[0:2], axis = 0).reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
-                x_allBatch = np.concatenate(x_real1[0:2], axis = 0).reshape((x_real1[0].shape[0]*len(x_real1[0:2])*x_real1[0].shape[1],-1))
-                if (self.firstPlot == 1):
-                    f, axorig = plt.subplots(2, 1, sharex=True)
-                    axorig[0].plot(y_allBatch)
-                    axorig[0].set_title('Y-original')
-                    axorig[1].plot(x_allBatch)
-                    axorig[1].set_title('X-original')
-                    plt.savefig("{}/XY_{}".format(self.savedFolder,epoch))#self.savedFolder+'/'+ch.name+str(numfig)
-                    plt.clf()
-                    self.firstPlot = 0
-                f, axarr = plt.subplots(rows,1, sharex=True)
-                for i, ch in enumerate(self.indexDDoutPlot):
-                    aux0 = restOfRecords[ch[1].name]
-                    aux = np.concatenate(aux0, axis = 0).reshape((aux0[0].shape[0]*len(aux0)*aux0[0].shape[1],-1))#T.concatenate(restOfRecords[ch[1].name], axis = 1)
-                    axarr[i].plot(aux)
-                    axarr[i].set_title(ch[1].name)
-                plt.savefig("{}/allTogetherAllSet_{}".format(self.savedFolder,epoch))#self.savedFolder+'/'+ch.name+str(numfig)
-                plt.clf()
-            '''
         else:
             pass
 
@@ -332,18 +243,11 @@ class Monitoring(Extension, TheanoMixin):
             srt = max(0, log.batch_seen - self.freq)
             end = max(1, log.batch_seen)
             t = np.asarray(log.monitor['time'])[srt: end].sum()
-            logger.info("")
-            logger.info(" Monitoring step")
-            logger.info(" Elapsed time: %f epochs %d batches seen %d" % (t, log.epoch_seen, log.batch_seen))
-            #logger.info(" Epochs  seen: %d" % )
-            #logger.info(" Batches seen: %d" % )
+            logger.info(" MONITORING STEP. Elapsed time: %f epochs %d batches seen %d" % (t, log.epoch_seen, log.batch_seen))
             logger.info(" Optimization parameters")
-            logger.info(" .......................")
             mainloop.optimizer.monitor()
-            logger.info(" ------------------")
             
             output_channel = [out.name for out in mainloop.outputs]
-            logger.info(" Forward-prop based - len output-channels %d" % len(output_channel))
             if log.batch_seen == 0:
                 logger.info(" initial_monitoring")
             else:
@@ -447,12 +351,12 @@ class EarlyStopping(Extension):
         if len(mainloop.trainlog.monitor['update']) > 0:
             if np.mod(mainloop.trainlog.batch_seen, self.freq) == 0 or mainloop.endloop:
                 token = 0
-
+                a =mainloop.trainlog.monitor[self.channel][-1]
                 if self.minimize_:
-                    if mainloop.trainlog.monitor[self.channel][-1] < self.best:
+                    if a < self.best:
                         token = 1
                 else:
-                    if mainloop.trainlog.monitor[self.channel][-1] > self.best:
+                    if a > self.best:
                         token = 1
 
                 if token:
