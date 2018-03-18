@@ -1,4 +1,4 @@
-import ipdb
+# import ipdb
 import cPickle
 import logging
 import numpy as np
@@ -156,11 +156,11 @@ class Monitoring(Extension, TheanoMixin):
                     if count in self.instancesPlot.keys():
                         listInst = self.instancesPlot[count]
                         for idxInst in listInst:
-                            oneBatch = np.concatenate(np.squeeze(batch[0][:,idxInst-3:idxInst+3]), axis = 0)
+                            oneBatch = np.concatenate(np.squeeze(batch[0][:,idxInst-1:idxInst+1]), axis = 0)
                             #oneBatch = np.squeeze(batch[0][:,idxInst])
-                            X.append(oneBatch)
+                            X.append((oneBatch,count,idxInst))
                             if (len(batch)>2):
-                                oneBatch = np.concatenate(np.squeeze(batch[2][:,idxInst-3:idxInst+3]), axis = 0)
+                                oneBatch = np.concatenate(np.squeeze(batch[2][:,idxInst-1:idxInst+1]), axis = 0)
                                 #oneBatch =np.squeeze(batch[2][:,idxInst])
                                 Y.append(oneBatch)
                     count+=1
@@ -171,13 +171,13 @@ class Monitoring(Extension, TheanoMixin):
             for idx, xinst in enumerate(X):
                 if (self.firstPlot==1):
                     plt.figure(1)
-                    plt.plot(xinst)
-                    plt.savefig("{}/x_instance-{}".format(self.savedFolder,idx))
+                    plt.plot(xinst[0])
+                    plt.savefig("{}/x_instance-{}-{}".format(self.savedFolder,xinst[1],xinst[2]))
                     plt.clf()
                     if (len(batch)>2): # Ploting Y
                         plt.figure(2)
                         plt.plot(Y[idx])
-                        plt.savefig("{}/y-instance-{}".format(self.savedFolder,idx))
+                        plt.savefig("{}/y-instance-{}-{}".format(self.savedFolder,xinst[1],xinst[2]))
                         plt.clf()
             self.firstPlot=0
             epoch = mainloop.trainlog.epoch_seen
@@ -192,7 +192,7 @@ class Monitoring(Extension, TheanoMixin):
                             if (i>=self.indexSep): # number of parameters that just need mean to be measured
                                 #### PLOTING FOR JUST SERIES. Maybe another FOR for the different batches in different files
                                 
-                                oneBatch = np.concatenate(others_record[0][nbatch][i-self.indexSep][:,idxInst-3:idxInst+3], axis = 0)#.reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
+                                oneBatch = np.concatenate(others_record[0][nbatch][i-self.indexSep][:,idxInst-1:idxInst+1], axis = 0)#.reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
                                 #axorig[i-self.indexSep].plot(oneBatch)
                                 #print(others_record[0][nbatch][i-self.indexSep].shape)(500, 800, 1) - (seqLen, batch,1)
                                 axorig[i-self.indexSep].plot(oneBatch)
