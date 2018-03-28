@@ -307,6 +307,89 @@ def GMMdisag5(y, mu, sig, coeff, mu2, sig2, coeff2, mu3, sig3, coeff3, mu4, sig4
     nll = nll1 + nll2 + nll3 + nll4 + nll5
     return nll
 
+def GMMdisag8(y, mu, sig, coeff, mu2, sig2, coeff2, mu3, sig3, coeff3, mu4, sig4, coeff4, 
+                mu5, sig5, coeff5, mu6, sig6, coeff6, mu7, sig7, coeff7, mu8, sig8, coeff8):
+    """
+    Gaussian mixture model negative log-likelihood
+
+    Parameters
+    ----------
+    y     : TensorVariable
+    mu    : FullyConnected (Linear)
+    sig   : FullyConnected (Softplus)
+    coeff : FullyConnected (Softmax)
+    """
+    y1 = y[:,0].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')#[:,0,:]
+    y2 = y[:,1].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')#[:,1,:]
+    y3 = y[:,2].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')
+    y4 = y[:,3].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')
+    y5 = y[:,4].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')
+    y6 = y[:,5].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')
+    y7 = y[:,6].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')
+    y8 = y[:,7].dimshuffle(0, 'x').dimshuffle(0, 1, 'x')
+
+    y1.name = 'y1_shuffled'
+    y2.name = 'y2_shuffled'
+    y3.name = 'y3_shuffled'
+    y4.name = 'y4_shuffled'
+    y5.name = 'y5_shuffled'
+    y6.name = 'y6_shuffled'
+    y7.name = 'y7_shuffled'
+    y8.name = 'y8_shuffled'
+    #coeff = coeff.reshape((coeff.shape[0], 1,coeff.shape[1] ))
+    mu = mu.reshape((mu.shape[0],mu.shape[1]//coeff.shape[-1],coeff.shape[-1]))
+    sig = sig.reshape((sig.shape[0],sig.shape[1]//coeff.shape[-1],coeff.shape[-1]))
+
+    mu2 = mu2.reshape((mu2.shape[0],mu2.shape[1]//coeff2.shape[-1],coeff2.shape[-1]))
+    sig2 = sig2.reshape((sig2.shape[0],sig2.shape[1]//coeff2.shape[-1],coeff2.shape[-1]))
+
+    mu3 = mu3.reshape((mu3.shape[0],mu3.shape[1]//coeff3.shape[-1],coeff3.shape[-1]))
+    sig3 = sig3.reshape((sig3.shape[0],sig3.shape[1]//coeff3.shape[-1],coeff3.shape[-1]))
+
+    mu4 = mu4.reshape((mu4.shape[0],mu4.shape[1]//coeff4.shape[-1],coeff4.shape[-1]))
+    sig4 = sig4.reshape((sig4.shape[0],sig4.shape[1]//coeff4.shape[-1],coeff4.shape[-1]))
+
+    mu5 = mu5.reshape((mu5.shape[0],mu5.shape[1]//coeff5.shape[-1],coeff5.shape[-1]))
+    sig5 = sig5.reshape((sig5.shape[0],sig5.shape[1]//coeff5.shape[-1],coeff5.shape[-1]))
+
+    mu6 = mu6.reshape((mu6.shape[0],mu6.shape[1]//coeff6.shape[-1],coeff6.shape[-1]))
+    sig6 = sig6.reshape((sig6.shape[0],sig6.shape[1]//coeff6.shape[-1],coeff6.shape[-1]))
+
+    mu7 = mu7.reshape((mu7.shape[0],mu7.shape[1]//coeff7.shape[-1],coeff7.shape[-1]))
+    sig7 = sig7.reshape((sig7.shape[0],sig7.shape[1]//coeff7.shape[-1],coeff7.shape[-1]))
+
+    mu8 = mu8.reshape((mu8.shape[0],mu8.shape[1]//coeff8.shape[-1],coeff8.shape[-1]))
+    sig8 = sig8.reshape((sig8.shape[0],sig8.shape[1]//coeff8.shape[-1],coeff8.shape[-1]))
+
+    inner1 = -0.5 * T.sum(T.sqr(y1 - mu) / sig**2 + 2 * T.log(sig) + T.log(2 * np.pi), axis=1)
+    inner1.name = 'inner'
+    nll1 = -logsumexp(T.log(coeff) + inner1, axis=1)
+    nll1.name = 'logsum'
+
+    inner2 = -0.5 * T.sum(T.sqr(y2 - mu2) / sig2**2 + 2 * T.log(sig2) + T.log(2 * np.pi), axis=1)
+    nll2 = -logsumexp(T.log(coeff2) + inner2, axis=1)
+
+    inner3 = -0.5 * T.sum(T.sqr(y3 - mu3) / sig3**2 + 2 * T.log(sig3) + T.log(2 * np.pi), axis=1)
+    nll3 = -logsumexp(T.log(coeff3) + inner3, axis=1)
+
+    inner4 = -0.5 * T.sum(T.sqr(y4 - mu4) / sig4**2 + 2 * T.log(sig4) + T.log(2 * np.pi), axis=1)
+    nll4 = -logsumexp(T.log(coeff4) + inner4, axis=1)
+
+    inner5 = -0.5 * T.sum(T.sqr(y5 - mu5) / sig5**2 + 2 * T.log(sig5) + T.log(2 * np.pi), axis=1)
+    nll5 = -logsumexp(T.log(coeff5) + inner5, axis=1)
+
+    inner6 = -0.5 * T.sum(T.sqr(y6 - mu6) / sig6**2 + 2 * T.log(sig6) + T.log(2 * np.pi), axis=1)
+    nll6 = -logsumexp(T.log(coeff6) + inner6, axis=1)
+
+    inner7 = -0.5 * T.sum(T.sqr(y7 - mu7) / sig7**2 + 2 * T.log(sig7) + T.log(2 * np.pi), axis=1)
+    nll7 = -logsumexp(T.log(coeff7) + inner7, axis=1)
+
+    inner8 = -0.5 * T.sum(T.sqr(y8 - mu8) / sig8**2 + 2 * T.log(sig8) + T.log(2 * np.pi), axis=1)
+    nll8 = -logsumexp(T.log(coeff8) + inner8, axis=1)
+
+    nll = nll1 + nll2 + nll3 + nll4 + nll5 + nll6 + nll7 + nll8
+    return nll
+
 def GMMdisagMulti(y, y_dim,  mu, sig, coeff):
     """
     Gaussian mixture model negative log-likelihood
