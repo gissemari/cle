@@ -8,7 +8,7 @@ import theano
 import theano.tensor as T
 import time
 import matplotlib.pyplot as plt
-plt.switch_backend('agg')
+plt.switch_backend('PS')
 from cle.cle.graph import TheanoMixin
 from cle.cle.utils import secure_pickle_dump, tolist
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams # for theano_rng used in sampling (to plot)
@@ -157,11 +157,9 @@ class Monitoring(Extension, TheanoMixin):
                         listInst = self.instancesPlot[count]
                         for idxInst in listInst:
                             oneBatch = np.concatenate(np.squeeze(batch[0][:,idxInst-1:idxInst+1]), axis = 0)
-                            #oneBatch = np.squeeze(batch[0][:,idxInst])
                             X.append((oneBatch,count,idxInst))
                             if (len(batch)>2):
                                 oneBatch = np.concatenate(np.squeeze(batch[2][:,idxInst-1:idxInst+1]), axis = 0)
-                                #oneBatch =np.squeeze(batch[2][:,idxInst])
                                 Y.append(oneBatch)
                     count+=1
                 print(count)
@@ -172,7 +170,7 @@ class Monitoring(Extension, TheanoMixin):
                 if (self.firstPlot==1):
                     plt.figure(1)
                     plt.plot(xinst[0])
-                    plt.savefig("{}/x_instance-{}-{}".format(self.savedFolder,xinst[1],xinst[2]))
+                    plt.savefig("{}/x_instance-{}-{}.pdf".format(self.savedFolder,xinst[1],xinst[2]))
                     plt.clf()
                     if (len(batch)>2): # Ploting Y
                         plt.figure(2)
@@ -188,35 +186,29 @@ class Monitoring(Extension, TheanoMixin):
                 for nbatch, batchList in self.instancesPlot.items():
                     for idxInst in batchList:
                         f, axorig = plt.subplots(rows, 1, sharex=True)
+                        #numFig=3
                         for i, ch in enumerate(self.ddout):
                             if (i>=self.indexSep): # number of parameters that just need mean to be measured
                                 #### PLOTING FOR JUST SERIES. Maybe another FOR for the different batches in different files
-                                
-                                oneBatch = np.concatenate(others_record[0][nbatch][i-self.indexSep][:,idxInst-1:idxInst+1], axis = 0)#.reshape((y_real1[0].shape[0]*len(y_real1[0:2])*y_real1[0].shape[1],-1))
+                                oneBatch = np.concatenate(others_record[0][nbatch][i-self.indexSep][:,idxInst-1:idxInst+1], axis = 0)
+                                plt.figure(3)
                                 #axorig[i-self.indexSep].plot(oneBatch)
-                                #print(others_record[0][nbatch][i-self.indexSep].shape)(500, 800, 1) - (seqLen, batch,1)
-                                axorig[i-self.indexSep].plot(oneBatch)
-                                #oneBatch=others_record[0][nbatch][i-self.indexSep][:,ninstance]
-                                axorig[i-self.indexSep].set_title('{}'.format(ch.name))
+                                plt.plot(oneBatch)
+                                #axorig[i-self.indexSep].set_title('{}'.format(ch.name))
+                                plt.title('{}'.format(ch.name))
                                 ####
-                        plt.savefig("{}/all_e{}_batch{}-{}".format(self.savedFolder,epoch, nbatch, idxInst), bbox_inches='tight')#self.savedFolder+'/'+ch.name+str(numfig)
-                        plt.clf()
+                                plt.savefig("{}/{}_e{}_batch{}-{}".format(self.savedFolder,ch.name,epoch, nbatch, idxInst), bbox_inches='tight')#self.savedFolder+'/'+ch.name+str(numfig)
+                                plt.clf()
                 for i, ch in enumerate(self.ddout):
                     if (i>=self.indexSep):
                         pass
                     else:
                         this_mean = record[:, i].mean() #mean among the batches
-                        #if (ch.name[0:3] = 'mse' ): # not necessary because this is .mean()
-                        #    this_mean = record[:, i].sum() * (1/count)
                         if this_mean is np.nan:
                             raise ValueError("NaN occured in output.")
                         strLog +="{}: {} ".format(ch.name, this_mean)
-                        #logger.info(" %s_%s: %f " % (data.name, ch.name, this_mean))
-                        #print(record[:, i].shape[0],record[:, i].shape[1])
                         if this_mean > self.explosion_limit:
                             raise ValueError('explosion')
-
-                        #ch_name = "%s_%s" % (data.name, ch.name)
                         ch_name = "%s" % (ch.name)
                         mainloop.trainlog.monitor[ch_name].append(this_mean)
 
