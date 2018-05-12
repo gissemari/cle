@@ -2,14 +2,14 @@ import ipdb
 import logging
 import theano.tensor as T
 import time
-
+import numpy as  np
 from cle.cle.graph import TheanoMixin
 from cle.cle.models import Model
 from cle.cle.utils import PickleMixin, tolist
 
 from collections import defaultdict
 from theano.compat.python2x import OrderedDict
-
+from math import exp
 from itertools import izip
 
 
@@ -32,10 +32,13 @@ class Training(PickleMixin, TheanoMixin):
                  optimizer,
                  cost,
                  outputs,
+                 n_steps,
                  debug_print=0,
                  trainlog=None,
                  extension=None,
-                 lr_iterations=None):
+                 lr_iterations=None,
+                 decay_schedule = 2,
+                 k_speedOfconvergence = 15):
         self.name = name
         self.data = data
         self.model = model
@@ -51,7 +54,7 @@ class Training(PickleMixin, TheanoMixin):
         for node in self.model.nodes:
             lr_scalers[node.name] = node.lr_scaler
         self.optimizer.lr_scalers = lr_scalers
-
+        self.nBernoulli = np.ones((n_steps,))
         t0 = time.time()
         self.cost_fn = self.build_training_graph()
         print "Elapsed compilation time: %f" % (time.time() - t0)
@@ -65,6 +68,10 @@ class Training(PickleMixin, TheanoMixin):
         self.endloop = 0
         self.lr_iterations = lr_iterations
         self.lastBatchlastPoch = 0
+        self.decay_schedule = decay_schedule
+        self.k = k_speedOfconvergence
+        self.schedRate = 1
+        self.n_steps = n_steps
 
     def build_training_graph(self):
 
@@ -78,7 +85,8 @@ class Training(PickleMixin, TheanoMixin):
             self.updates[key] = val
 
         self.run_extension('ext_regularize_post_grad')
-
+        print(type(self.inputs), len(self.inputs))
+        #self.inputs.append(self.nBernoulli)
         return self.build_theano_graph(self.inputs, self.outputs, self.updates)
 
     def run(self):
@@ -89,21 +97,28 @@ class Training(PickleMixin, TheanoMixin):
 
     def run_epoch(self):
         self.trainlog.lastBatchlastEpoch = self.trainlog.batch_seen
+        
         for batch in self.data:
             self.run_extension('ext_monitor')
             #self.run_extension('ext_save')
             batch_t0 = time.time()
-            this_cost = self.cost_fn(*batch)
+            nBernoulli = [np.random.binomial(1,self.schedRate) for i in range(self.n_steps)]
+            nBernoulli = np.asarray(nBernoulli)
+            nBernoulli = np.reshape(nBernoulli,(self.n_steps,))
+            batchAux = (batch + (nBernoulli,))
+
+            this_cost = self.cost_fn(*batchAux)
             self.trainlog.monitor['time'].append(time.time() - batch_t0)
             self.trainlog.monitor['update'].append(this_cost)
             self.trainlog.batch_seen += 1
             self.run_extension('ext_schedule')
 
         self.trainlog.epoch_seen += 1
+        self.schedRate = self.k/(self.k + exp(self.trainlog.epoch_seen/self.k) )
         for limit, lr_it in self.lr_iterations.items():
             if (limit < self.trainlog.epoch_seen):
                 self.optimizer.lr.set_value(lr_it)
-        print("Epoch ", self.trainlog.epoch_seen)
+        print("Epoch: {} - seched rate: {}".format(self.trainlog.epoch_seen,self.schedRate))
         self.run_extension('ext_term')## changes the value of endloop
 
         if self.end_training():

@@ -7,6 +7,7 @@ import sys
 import theano
 import theano.tensor as T
 import time
+from math import exp
 import matplotlib.pyplot as plt
 plt.switch_backend('PS')
 from cle.cle.graph import TheanoMixin
@@ -136,6 +137,8 @@ class Monitoring(Extension, TheanoMixin):
         mainloop.trainlog.monitor['epoch'].append(mainloop.trainlog.epoch_seen)
         if self.monitor_fn is None:
             inputs = mainloop.inputs
+            ### for schedule sampling
+            ######################
             self.monitor_fn = self.build_theano_graph(inputs, self.ddout)
         count=0
         X=[]
@@ -146,10 +149,20 @@ class Monitoring(Extension, TheanoMixin):
             for data in self.data: #       
                 batch_record = []
                 others = []
+
+                schedRate = mainloop.k/(mainloop.k + exp(mainloop.trainlog.epoch_seen/mainloop.k) )
+                nBernoulli = [np.random.binomial(1,schedRate) for i in range(mainloop.n_steps)]
+                nBernoulli = np.asarray(nBernoulli)
+
                 for batch in data: # data es un iterator - batch es tuple ([batches[0], mask]) this happened n_batchs times
                     #batch[0].shape -> (726, 20, 3)
                     #batch[0].shape -> (500,800,1) = (seqLen, numBatch, 1)
-                    this_out = self.monitor_fn(*batch) # len(this_out) = 20 = batch size
+                    batchAux= (batch,nBernoulli)
+
+                    nBernoulli = np.reshape(nBernoulli,(mainloop.n_steps,))
+                    batchAux = (batch + (nBernoulli,))
+                    this_out = self.monitor_fn(*batchAux) # len(this_out) = 20 = batch size
+
                     batch_record.append(this_out[:self.indexSep]) #indexSep 18
                     others.append(this_out[self.indexSep:]) # 5 batches
                     ### Plot here real batches X
