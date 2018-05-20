@@ -38,7 +38,7 @@ class Training(PickleMixin, TheanoMixin):
                  extension=None,
                  lr_iterations=None,
                  decay_schedule = 2,
-                 k_speedOfconvergence = 15):
+                 k_speedOfconvergence = 40):
         self.name = name
         self.data = data
         self.model = model
@@ -114,7 +114,7 @@ class Training(PickleMixin, TheanoMixin):
             self.run_extension('ext_schedule')
 
         self.trainlog.epoch_seen += 1
-        self.schedRate = self.k/(self.k + exp(self.trainlog.epoch_seen/self.k) )
+        self.schedRate = self.k/(self.k + exp(float(self.trainlog.epoch_seen/self.k)))
         for limit, lr_it in self.lr_iterations.items():
             if (limit < self.trainlog.epoch_seen):
                 self.optimizer.lr.set_value(lr_it)
