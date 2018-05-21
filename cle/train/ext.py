@@ -157,15 +157,6 @@ class Monitoring(Extension, TheanoMixin):
                 for batch in data: # data es un iterator - batch es tuple ([batches[0], mask]) this happened n_batchs times
                     #batch[0].shape -> (726, 20, 3)
                     #batch[0].shape -> (500,800,1) = (seqLen, numBatch, 1)
-                    batchAux= (batch,nBernoulli)
-
-                    nBernoulli = np.reshape(nBernoulli,(mainloop.n_steps,))
-                    batchAux = (batch + (nBernoulli,))
-                    this_out = self.monitor_fn(*batchAux) # len(this_out) = 20 = batch size
-
-                    batch_record.append(this_out[:self.indexSep]) #indexSep 18
-                    others.append(this_out[self.indexSep:]) # 5 batches
-                    ### Plot here real batches X
                     if count in self.instancesPlot.keys():
                         listInst = self.instancesPlot[count]
                         for idxInst in listInst:
@@ -175,6 +166,17 @@ class Monitoring(Extension, TheanoMixin):
                                 oneBatch = np.concatenate(np.squeeze(batch[2][:,idxInst-1:idxInst+1]), axis = 0)
                                 Y.append(oneBatch)
                     count+=1
+                    
+                    batchAux= (batch,nBernoulli)
+
+                    nBernoulli = np.reshape(nBernoulli,(mainloop.n_steps,))
+                    batchAux = (batch + (nBernoulli,))
+                    this_out = self.monitor_fn(*batchAux) # len(this_out) = 20 = batch size
+
+                    batch_record.append(this_out[:self.indexSep]) #indexSep 18
+                    others.append(this_out[self.indexSep:]) # 5 batches
+                    ### Plot here real batches X
+
                 print(count)
                 data_record.append(np.asarray(batch_record))
                 others_record.append(others)

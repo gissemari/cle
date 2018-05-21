@@ -1,4 +1,4 @@
-import ipdb
+#import ipdb
 import logging
 import theano.tensor as T
 import time
@@ -114,7 +114,9 @@ class Training(PickleMixin, TheanoMixin):
             self.run_extension('ext_schedule')
 
         self.trainlog.epoch_seen += 1
-        self.schedRate = self.k/(self.k + exp(float(self.trainlog.epoch_seen/self.k)))
+        first = self.trainlog.epoch_seen/float(self.k)
+        second = self.k + exp(first)
+        self.schedRate = self.k/second
         for limit, lr_it in self.lr_iterations.items():
             if (limit < self.trainlog.epoch_seen):
                 self.optimizer.lr.set_value(lr_it)
