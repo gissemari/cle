@@ -160,11 +160,13 @@ class Monitoring(Extension, TheanoMixin):
                     if count in self.instancesPlot.keys():
                         listInst = self.instancesPlot[count]
                         for idxInst in listInst:
-                            oneBatch = np.concatenate(np.squeeze(batch[0][:,idxInst-1:idxInst+1]), axis = 0)
-                            X.append((oneBatch,count,idxInst))
+                            #oneBatch = np.concatenate(np.squeeze(batch[0][:,idxInst-1:idxInst+1]), axis = 0)
+                            #X.append((oneBatch,count,idxInst))
+                            X.append((batch[0][:,idxInst],count,idxInst))
                             if (len(batch)>2):
-                                oneBatch = np.concatenate(np.squeeze(batch[2][:,idxInst-1:idxInst+1]), axis = 0)
-                                Y.append(oneBatch)
+                                #oneBatch = np.concatenate(np.squeeze(batch[2][:,idxInst-1:idxInst+1]), axis = 0)
+                                #Y.append(oneBatch)
+                                Y.append(batch[2][:,idxInst])
                     count+=1
                     
                     batchAux= (batch,nBernoulli)
@@ -205,7 +207,7 @@ class Monitoring(Extension, TheanoMixin):
                         for i, ch in enumerate(self.ddout):
                             if (i>=self.indexSep): # number of parameters that just need mean to be measured
                                 #### PLOTING FOR JUST SERIES. Maybe another FOR for the different batches in different files
-                                oneBatch = np.concatenate(others_record[0][nbatch][i-self.indexSep][:,idxInst-1:idxInst+1], axis = 0)
+                                oneBatch = np.concatenate(others_record[0][nbatch][i-self.indexSep][:,idxInst], axis = 0)
                                 plt.figure(3)
                                 #axorig[i-self.indexSep].plot(oneBatch)
                                 plt.plot(oneBatch)

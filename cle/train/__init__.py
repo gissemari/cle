@@ -100,7 +100,7 @@ class Training(PickleMixin, TheanoMixin):
         
         for batch in self.data:
             self.run_extension('ext_monitor')
-            #self.run_extension('ext_save')
+            self.run_extension('ext_save')
             batch_t0 = time.time()
             nBernoulli = [np.random.binomial(1,self.schedRate) for i in range(self.n_steps)]
             nBernoulli = np.asarray(nBernoulli)
@@ -112,6 +112,7 @@ class Training(PickleMixin, TheanoMixin):
             self.trainlog.monitor['update'].append(this_cost)
             self.trainlog.batch_seen += 1
             self.run_extension('ext_schedule')
+
 
         self.trainlog.epoch_seen += 1
         first = self.trainlog.epoch_seen/float(self.k)
