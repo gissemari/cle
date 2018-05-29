@@ -360,6 +360,8 @@ class EarlyStopping(Extension):
         if len(mainloop.trainlog.monitor['update']) > 0:
             if np.mod(mainloop.trainlog.batch_seen, self.freq) == 0 or mainloop.endloop:
                 token = 0
+                print("early stopping")
+                print(mainloop.trainlog.monitor.keys())
                 a =mainloop.trainlog.monitor[self.channel][-1]
                 if self.minimize_:
                     if a < self.best:

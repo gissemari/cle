@@ -73,6 +73,54 @@ class Training(PickleMixin, TheanoMixin):
         self.schedRate = 1
         self.n_steps = n_steps
 
+    def restore(self,
+                 name,
+                 data,
+                 model,
+                 optimizer,
+                 cost,
+                 outputs,
+                 n_steps,
+                 debug_print=0,
+                 trainlog=None,
+                 extension=None,
+                 lr_iterations=None,
+                 decay_schedule = 2,
+                 k_speedOfconvergence = 40):
+        self.name = name
+        self.data = data
+        self.model = model
+        self.optimizer = optimizer
+        self.inputs = model.inputs
+        self.cost = cost
+        self.outputs = tolist(outputs)
+        self.updates = OrderedDict()
+        self.updates.update(model.updates)
+        self.extension = extension
+        self.debug_print = debug_print
+        lr_scalers = OrderedDict()
+        for node in self.model.nodes:
+            lr_scalers[node.name] = node.lr_scaler
+        self.optimizer.lr_scalers = lr_scalers
+        self.nBernoulli = np.ones((n_steps,))
+        t0 = time.time()
+        self.cost_fn = self.build_training_graph()
+        print "Elapsed compilation time: %f" % (time.time() - t0)
+        if self.debug_print:
+            from theano.printing import debugprint
+            debugprint(self.cost_fn)
+        if trainlog is None:
+            self.trainlog = TrainLog()
+        else:
+            self.trainlog = trainlog
+        self.endloop = 0
+        self.lr_iterations = lr_iterations
+        self.lastBatchlastPoch = 0
+        self.decay_schedule = decay_schedule
+        self.k = k_speedOfconvergence
+        self.schedRate = 1
+        self.n_steps = n_steps
+
     def build_training_graph(self):
 
         self.run_extension('ext_regularize_pre_grad')
@@ -164,6 +212,8 @@ class TrainLog(object):
     """
     def __init__(self):
         self.monitor = defaultdict(list)
+        print("Initial dictionary ")
+        print(self.monitor.keys())
         self.epoch_seen = 0
         self.batch_seen = 0
         self.lastBatchlastEpoch = 0
