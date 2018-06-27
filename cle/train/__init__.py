@@ -39,44 +39,43 @@ class Training(PickleMixin, TheanoMixin):
                  lr_iterations=None,
                  decay_schedule = 2,
                  k_speedOfconvergence = 40):
-        self.name = name
-        self.data = data
-        self.model = model
-        self.optimizer = optimizer
-        self.inputs = model.inputs
-        self.cost = cost
-        self.outputs = tolist(outputs)
-        self.updates = OrderedDict()
-        self.updates.update(model.updates)
-        self.extension = extension
-        self.debug_print = debug_print
-        lr_scalers = OrderedDict()
-        for node in self.model.nodes:
+        #picklelized?
+        self.name = name # yes
+        self.data = data # no
+        self.model = model #yes
+        self.optimizer = optimizer #no
+        self.inputs = model.inputs #no
+        self.cost = cost #yes
+        self.outputs = tolist(outputs) #no
+        self.updates = OrderedDict() # no
+        self.updates.update(model.updates) #???
+        self.extension = extension #no
+        self.debug_print = debug_print #no
+        lr_scalers = OrderedDict() #yes
+        for node in self.model.nodes: #should
             lr_scalers[node.name] = node.lr_scaler
-        self.optimizer.lr_scalers = lr_scalers
-        self.nBernoulli = np.ones((n_steps,))
-        t0 = time.time()
-        self.cost_fn = self.build_training_graph()
+        self.optimizer.lr_scalers = lr_scalers #should
+        self.nBernoulli = np.ones((n_steps,)) #yes
+        t0 = time.time() 
+        self.cost_fn = self.build_training_graph() # no but should
         print "Elapsed compilation time: %f" % (time.time() - t0)
-        if self.debug_print:
+        if self.debug_print: #no
             from theano.printing import debugprint
             debugprint(self.cost_fn)
-        if trainlog is None:
+        if trainlog is None: #yes
             self.trainlog = TrainLog()
         else:
             self.trainlog = trainlog
-        self.endloop = 0
-        self.lr_iterations = lr_iterations
-        self.lastBatchlastPoch = 0
-        self.decay_schedule = decay_schedule
-        self.k = k_speedOfconvergence
-        self.schedRate = 1
-        self.n_steps = n_steps
+        self.endloop = 0 #no
+        self.lr_iterations = lr_iterations #yes
+        self.lastBatchlastPoch = 0 #yes
+        self.decay_schedule = decay_schedule #yes
+        self.k = k_speedOfconvergence #yes 
+        self.schedRate = 1 #yes
+        self.n_steps = n_steps #yes
 
     def restore(self,
-                 name,
                  data,
-                 model,
                  optimizer,
                  cost,
                  outputs,
@@ -87,15 +86,14 @@ class Training(PickleMixin, TheanoMixin):
                  lr_iterations=None,
                  decay_schedule = 2,
                  k_speedOfconvergence = 40):
-        self.name = name
         self.data = data
-        self.model = model
         self.optimizer = optimizer
-        self.inputs = model.inputs
+        self.inputs = self.model.inputs
         self.cost = cost
         self.outputs = tolist(outputs)
-        self.updates = OrderedDict()
-        self.updates.update(model.updates)
+        #self.updates = OrderedDict()
+        #self.updates.update(self.model.updates)
+        self.updates = self.model.updates
         self.extension = extension
         self.debug_print = debug_print
         lr_scalers = OrderedDict()
@@ -120,7 +118,24 @@ class Training(PickleMixin, TheanoMixin):
         self.k = k_speedOfconvergence
         self.schedRate = 1
         self.n_steps = n_steps
-
+    '''
+    def restore(self,
+                data,
+                cost,
+                model,
+                optimizer,
+                k_speedOfconvergence = 40):
+        self.data = data
+        self.cost = cost
+        self.model = model
+        self.optimizer = optimizer
+        self.inputs = model.inputs
+        lr_scalers = OrderedDict()
+        for node in self.model.nodes:
+            lr_scalers[node.name] = node.lr_scaler
+        self.cost_fn = self.build_training_graph()
+        self.k = k_speedOfconvergence
+    '''
     def build_training_graph(self):
 
         self.run_extension('ext_regularize_pre_grad')

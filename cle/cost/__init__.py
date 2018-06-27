@@ -124,6 +124,37 @@ def GMM(y, mu, sig, coeff):
     nll.name = 'logsum'
     return nll
 
+def GMM_outside(y, mu, sig, coeff):
+    """
+    Gaussian mixture model negative log-likelihood
+
+    Parameters
+    ----------
+    y     : TensorVariable no, array
+    mu    : FullyConnected (Linear)
+    sig   : FullyConnected (Softplus)
+    coeff : FullyConnected (Softmax)
+    """
+    y = np.expand_dims(y, axis=2)
+    mu = mu.reshape((mu.shape[0],
+                     mu.shape[1]//coeff.shape[-1],
+                     coeff.shape[-1]))
+    sig = sig.reshape((sig.shape[0],
+                       sig.shape[1]//coeff.shape[-1],
+                       coeff.shape[-1]))
+    a = np.square(y - mu)
+    inner = -0.5 * np.sum(a / sig**2 + 2 * np.log(sig) + np.log(2 * np.pi), axis=1)
+    #print(inner.shape)#(steps*batch,k)
+    aux1 = np.log(coeff) + inner # why not log(coef)+log(inner)??
+    #print(aux1.shape)
+    #nll = -logsumexp(np.log(coeff) + inner, axis=1)
+    
+    x_max = np.amax(aux1, axis=1, keepdims=True)
+    z = np.log(np.sum(np.exp(aux1 - x_max), axis=1, keepdims=True)) + x_max
+    nll =  np.sum(z,axis=1)
+
+    return -nll
+
 def GMMdisag2(y, mu, sig, coeff, mu2, sig2, coeff2):
     """
     Gaussian mixture model negative log-likelihood
